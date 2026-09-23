@@ -1,0 +1,33 @@
+{
+ "amendments": [
+  {
+   "congress": 109,
+   "number": "9",
+   "type": "SAMDT",
+   "updateDate": "2021-07-11T00:00:10Z",
+   "url": "https://api.congress.gov/v3/amendment/109/samdt/9?format=json"
+  },
+  {
+   "congress": 109,
+   "description": "Amendment changes the effective date of the bill to the date of enactment.",
+   "latestAction": {
+    "actionDate": "2005-01-26",
+    "actionTime": "11:28:22",
+    "text": "On agreeing to the Oxley amendment (A001) Agreed to by voice vote. "
+   },
+   "number": "2",
+   "purpose": "An amendment numbered 1 printed in House Report 109-1 to change the effective date of the bill from \"after December 31, 2005\" to instead make the new limitation on the number of congressional gold medals effective on enactment of the bill.",
+   "type": "HAMDT",
+   "updateDate": "2020-12-05T13:38:23Z",
+   "url": "https://api.congress.gov/v3/amendment/109/hamdt/2?format=json"
+  }
+ ],
+ "pagination": {
+  "count": 128829,
+  "next": "https://api.congress.gov/v3/amendment?offset=2&limit=2&format=json"
+ },
+ "request": {
+  "contentType": "application/json",
+  "format": "json"
+ }
+}

@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<billStatus>
+  <version>3.0.0</version>
+  <bill>
+    <number>1</number>
+    <updateDate>2025-01-14T17:21:40Z</updateDate>
+    <updateDateIncludingText>2025-01-14T17:21:40Z</updateDateIncludingText>
+    <originChamber>Senate</originChamber>
+    <originChamberCode>S</originChamberCode>
+    <type>SCONRES</type>
+    <introducedDate>2023-01-25</introducedDate>
+    <congress>118</congress>
+    <committees>
+      <item>
+        <systemCode>ssra00</systemCode>
+        <name>Rules and Administration Committee</name>
+        <chamber>Senate</chamber>
+        <type>Standing</type>
+        <activities>
+          <item>
+            <name>Referred To</name>
+            <date>2023-01-25T19:38:00Z</date>
+          </item>
+        </activities>
+      </item>
+    </committees>
+    <actions>
+      <item>
+        <actionDate>2023-01-25</actionDate>
+        <committees>
+          <item>
+            <systemCode>ssra00</systemCode>
+            <name>Rules and Administration Committee</name>
+          </item>
+        </committees>
+        <sourceSystem>
+          <name>Senate</name>
+        </sourceSystem>
+        <text>Referred to the Committee on Rules and Administration. (text: CR S104)</text>
+        <type>IntroReferral</type>
+      </item>
+      <item>
+        <actionDate>2023-01-25</actionDate>
+        <text>Introduced in Senate</text>
+        <type>IntroReferral</type>
+        <actionCode>10000</actionCode>
+        <sourceSystem>
+          <code>9</code>
+          <name>Library of Congress</name>
+        </sourceSystem>
+      </item>
+    </actions>
+    <sponsors>
+      <item>
+        <bioguideId>C001098</bioguideId>
+        <fullName>Sen. Cruz, Ted [R-TX]</fullName>
+        <firstName>Ted</firstName>
+        <lastName>Cruz</lastName>
+        <party>R</party>
+        <state>TX</state>
+        <isByRequest>N</isByRequest>
+      </item>
+    </sponsors>
+    <policyArea>
+      <name>Congress</name>
+    </policyArea>
+    <subjects>
+      <legislativeSubjects/>
+      <policyArea>
+        <name>Congress</name>
+        <updateDate>2023-02-08T18:31:00Z</updateDate>
+      </policyArea>
+    </subjects>
+    <summaries>
+      <summary>
+        <versionCode>00</versionCode>
+        <actionDate>2023-01-25</actionDate>
+        <actionDesc>Introduced in Senate</actionDesc>
+        <updateDate>2023-02-09T16:58:16Z</updateDate>
+        <cdata>
+          <text>&lt;p&gt;&lt;b&gt;Adopting Cryptocurrency in Congress as an Exchange of Payment for Transactions Resolution or the ACCEPT Resolution&lt;/b&gt;&lt;/p&gt; &lt;p&gt;This resolution requires the Architect of the Capitol, the Secretary of the Senate, and the Chief Administrative Officer of the House of Representatives to encourage Capitol gift shops to accept cryptocurrency and to enter into contracts with vendors that accept cryptocurrency to provide food service and vending machines in the Capitol.&lt;/p&gt;</text>
+        </cdata>
+      </summary>
+    </summaries>
+    <title>ACCEPT Resolution</title>
+    <titles>
+      <item>
+        <titleType>Display Title</titleType>
+        <titleTypeCode>45</titleTypeCode>
+        <title>ACCEPT Resolution</title>
+        <updateDate>2024-07-24T15:24:07Z</updateDate>
+      </item>
+      <item>
+        <titleType>Short Title(s) as Introduced</titleType>
+        <titleTypeCode>101</titleTypeCode>
+        <title>ACCEPT Resolution</title>
+        <updateDate>2024-05-24T13:43:01Z</updateDate>
+        <billTextVersionName>Introduced in Senate</billTextVersionName>
+        <billTextVersionCode>IS</billTextVersionCode>
+      </item>
+      <item>
+        <titleType>Short Title(s) as Introduced</titleType>
+        <titleTypeCode>101</titleTypeCode>
+        <title>Adopting Cryptocurrency in Congress as an Exchange of Payment for Transactions Resolution</title>
+        <updateDate>2024-05-24T13:43:01Z</updateDate>
+        <billTextVersionName>Introduced in Senate</billTextVersionName>
+        <billTextVersionCode>IS</billTextVersionCode>
+      </item>
+      <item>
+        <titleType>Official Title as Introduced</titleType>
+        <titleTypeCode>6</titleTypeCode>
+        <title>A concurrent resolution requiring the Architect of the Capitol, the Secretary of the Senate, and the Chief Administrative Officer of the House of Representatives to contract with food service contractors and vending machine contractors for the Capitol Complex that accept cryptocurrency, and for other purposes.</title>
+        <updateDate>2023-01-27T03:58:43Z</updateDate>
+        <billTextVersionName>Introduced in Senate</billTextVersionName>
+        <billTextVersionCode>IS</billTextVersionCode>
+      </item>
+    </titles>
+    <textVersions>
+      <item>
+        <type>Introduced in Senate</type>
+        <date>2023-01-25T05:00:00Z</date>
+        <formats>
+          <item>
+            <url>https://www.govinfo.gov/content/pkg/BILLS-118sconres1is/xml/BILLS-118sconres1is.xml</url>
+          </item>
+        </formats>
+      </item>
+    </textVersions>
+    <latestAction>
+      <actionDate>2023-01-25</actionDate>
+      <text>Referred to the Committee on Rules and Administration. (text: CR S104)</text>
+    </latestAction>
+  </bill>
+  <dublinCore xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <dc:format>text/xml</dc:format>
+    <dc:language>EN</dc:language>
+    <dc:rights>Pursuant to Title 17 Section 105 of the United States Code, this file is not subject to copyright protection and is in the public domain.</dc:rights>
+    <dc:contributor>Congressional Research Service, Library of Congress</dc:contributor>
+    <dc:description>This file contains bill summaries and statuses for federal legislation. A bill summary describes the most significant provisions of a piece of legislation and details the effects the legislative text may have on current law and federal programs. Bill summaries are authored by the Congressional Research Service (CRS) of the Library of Congress. As stated in Public Law 91-510 (2 USC 166 (d)(6)), one of the duties of CRS is "to prepare summaries and digests of bills and resolutions of a public general nature introduced in the Senate or House of Representatives". For more information, refer to the User Guide that accompanies this file.</dc:description>
+  </dublinCore>
+</billStatus>

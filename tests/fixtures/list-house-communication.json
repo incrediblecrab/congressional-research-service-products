@@ -1,0 +1,34 @@
+{
+ "houseCommunications": [
+  {
+   "chamber": "House",
+   "communicationType": {
+    "code": "EC",
+    "name": "Executive Communication"
+   },
+   "congress": 119,
+   "number": 4768,
+   "updateDate": "2026-09-22",
+   "url": "https://api.congress.gov/v3/house-communication/119/ec/4768?format=json"
+  },
+  {
+   "chamber": "House",
+   "communicationType": {
+    "code": "EC",
+    "name": "Executive Communication"
+   },
+   "congress": 119,
+   "number": 4769,
+   "updateDate": "2026-09-22",
+   "url": "https://api.congress.gov/v3/house-communication/119/ec/4769?format=json"
+  }
+ ],
+ "pagination": {
+  "count": 41726,
+  "next": "https://api.congress.gov/v3/house-communication?offset=2&limit=2&format=json"
+ },
+ "request": {
+  "contentType": "application/json",
+  "format": "json"
+ }
+}

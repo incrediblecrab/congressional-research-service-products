@@ -1,0 +1,46 @@
+{
+ "amendment": {
+  "actions": {
+   "count": 1,
+   "url": "https://api.congress.gov/v3/amendment/109/samdt/9/actions?format=json"
+  },
+  "amendedBill": {
+   "congress": 109,
+   "number": "5",
+   "originChamber": "Senate",
+   "originChamberCode": "S",
+   "title": "Class Action Fairness Act of 2005",
+   "type": "S",
+   "updateDateIncludingText": "2026-08-10",
+   "url": "https://api.congress.gov/v3/bill/109/s/5?format=json"
+  },
+  "chamber": "Senate",
+  "congress": 109,
+  "number": "9",
+  "sponsors": [
+   {
+    "bioguideId": "C001056",
+    "firstName": "John",
+    "fullName": "Sen. Cornyn, John [R-TX]",
+    "lastName": "Cornyn",
+    "party": "R",
+    "state": "TX",
+    "url": "https://api.congress.gov/v3/member/C001056?format=json"
+   }
+  ],
+  "submittedDate": "2005-02-09T05:00:00Z",
+  "textVersions": {
+   "count": 1,
+   "url": "https://api.congress.gov/v3/amendment/109/samdt/9/text?format=json"
+  },
+  "type": "SAMDT",
+  "updateDate": "2022-02-08T17:29:43Z"
+ },
+ "request": {
+  "amendmentNumber": "9",
+  "amendmentType": "samdt",
+  "congress": "109",
+  "contentType": "application/json",
+  "format": "json"
+ }
+}

@@ -1,0 +1,48 @@
+{
+ "nominations": [
+  {
+   "citation": "PN999-1",
+   "congress": 119,
+   "description": "Angela Veronica Colmenero, of Texas, to be United States District Judge for the Southern District of Texas, vice Lee H. Rosenthal, retired.",
+   "latestAction": {
+    "actionDate": "2026-09-22",
+    "text": "By unanimous consent agreement, vote 9/23/2026."
+   },
+   "nominationType": {
+    "isCivilian": true
+   },
+   "number": 999,
+   "organization": "The Judiciary",
+   "partNumber": "01",
+   "receivedDate": "2026-05-12",
+   "updateDate": "2026-09-23T11:00:32Z",
+   "url": "https://api.congress.gov/v3/nomination/119/999-1?format=json"
+  },
+  {
+   "citation": "PN1273-8",
+   "congress": 119,
+   "description": "Elliott Hulse, of California, to be Chief Executive Officer, Millennium Challenge Corporation, vice Alice P. Albright, resigned.",
+   "latestAction": {
+    "actionDate": "2026-09-14",
+    "text": "Received in the Senate and referred to the Committee on Foreign Relations."
+   },
+   "nominationType": {
+    "isCivilian": true
+   },
+   "number": 1273,
+   "organization": "Millennium Challenge Corporation",
+   "partNumber": "08",
+   "receivedDate": "2026-09-14",
+   "updateDate": "2026-09-19T11:00:27Z",
+   "url": "https://api.congress.gov/v3/nomination/119/1273-8?format=json"
+  }
+ ],
+ "pagination": {
+  "count": 45481,
+  "next": "https://api.congress.gov/v3/nomination?offset=2&limit=2&format=json"
+ },
+ "request": {
+  "contentType": "application/json",
+  "format": "json"
+ }
+}

@@ -1,0 +1,40 @@
+{
+ "committee": {
+  "bills": {
+   "count": 3042,
+   "url": "https://api.congress.gov/v3/committee/house/hsbu00/bills?format=json"
+  },
+  "committeeWebsiteUrl": "https://budget.house.gov/",
+  "communications": {
+   "count": 46,
+   "url": "https://api.congress.gov/v3/committee/house/hsbu00/house-communication?format=json"
+  },
+  "history": [
+   {
+    "committeeTypeCode": "Standing",
+    "establishingAuthority": "93 HR 7130",
+    "libraryOfCongressName": "Budget",
+    "locLinkedDataId": "n79018039",
+    "naraId": "10532832",
+    "officialName": "Committee on the Budget",
+    "startDate": "1974-07-12T04:00:00Z",
+    "superintendentDocumentNumber": "Y 4.B 85/3:",
+    "updateDate": "2024-08-13T12:57:48Z"
+   }
+  ],
+  "isCurrent": true,
+  "reports": {
+   "count": 82,
+   "url": "https://api.congress.gov/v3/committee/house/hsbu00/reports?format=json"
+  },
+  "systemCode": "hsbu00",
+  "type": "Standing",
+  "updateDate": "2026-09-08T19:24:14Z"
+ },
+ "request": {
+  "chamber": "house",
+  "contentType": "application/json",
+  "format": "json",
+  "systemCode": "hsbu00"
+ }
+}

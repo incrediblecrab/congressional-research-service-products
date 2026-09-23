@@ -1,0 +1,179 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<mods xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.loc.gov/mods/v3" version="3.3" xsi:schemaLocation="http://www.loc.gov/mods/v3 http://www.loc.gov/standards/mods/v3/mods-3-3.xsd" ID="P0b002ee1c3854655">
+    <name type="corporate">
+         <namePart>United States Government Publishing Office</namePart>
+         <role>
+              <roleTerm authority="marcrelator" type="text">publisher</roleTerm>
+              <roleTerm authority="marcrelator" type="code">pbl</roleTerm>
+        </role>
+         <role>
+              <roleTerm authority="marcrelator" type="text">distributor</roleTerm>
+              <roleTerm authority="marcrelator" type="code">dst</roleTerm>
+        </role>
+    </name>
+    <name type="corporate">
+         <namePart>United States</namePart>
+         <namePart>Congress</namePart>
+         <role>
+              <roleTerm authority="marcrelator" type="text">author</roleTerm>
+              <roleTerm authority="marcrelator" type="code">aut</roleTerm>
+        </role>
+         <description>Government Organization</description>
+    </name>
+    <typeOfResource>text</typeOfResource>
+    <genre authority="marcgt">government publication</genre>
+    <language>
+         <languageTerm type="code" authority="iso639-2b">eng</languageTerm>
+    </language>
+    <extension>
+         <collectionCode>CREC</collectionCode>
+         <category>Proceedings of Congress and General Congressional Publications</category>
+         <waisDatabaseName>2024_record</waisDatabaseName>
+         <branch>legislative</branch>
+         <dateIngested>2024-01-03</dateIngested>
+    </extension>
+    <titleInfo>
+         <title>Congressional Record</title>
+         <partNumber>Vol. 169, no. 214</partNumber>
+    </titleInfo>
+    <location>
+         <url displayLabel="Content Detail" access="object in context">https://www.govinfo.gov/app/details/CREC-2024-01-02</url>
+         <url displayLabel="PDF rendition" access="raw object">https://www.govinfo.gov/content/pkg/CREC-2024-01-02/pdf/CREC-2024-01-02.pdf</url>
+    </location>
+    <part type="issue">
+         <extent unit="pages">
+              <start>H7023</start>
+              <end>H7028</end>
+        </extent>
+         <extent unit="pages">
+              <start>S6087</start>
+              <end>S6087</end>
+        </extent>
+         <extent unit="pages">
+              <start>E1265</start>
+              <end>E1265</end>
+        </extent>
+         <extent unit="pages">
+              <start>D1333</start>
+              <end>D1334</end>
+        </extent>
+    </part>
+    <originInfo>
+         <publisher>U.S. Government Publishing Office</publisher>
+         <dateIssued encoding="w3cdtf">2024-01-02</dateIssued>
+         <issuance>continuing</issuance>
+         <frequency authority="marcfrequency">daily</frequency>
+    </originInfo>
+    <physicalDescription>
+         <note type="source content type">deposited</note>
+         <digitalOrigin>born digital</digitalOrigin>
+         <extent>10 p.</extent>
+    </physicalDescription>
+    <classification authority="sudocs">X 1.1/A:</classification>
+    <classification authority="sudocs">X/A.</classification>
+    <identifier type="uri">https://www.govinfo.gov/app/details/CREC-2024-01-02</identifier>
+    <identifier type="local">P0b002ee1c3854655</identifier>
+    <identifier type="stock number">752-002-00000-2</identifier>
+    <identifier type="ILS system id">000568013</identifier>
+    <identifier type="former package identifier">cr02ja24</identifier>
+    <recordInfo>
+         <recordContentSource authority="marcorg">DGPO</recordContentSource>
+         <recordCreationDate encoding="w3cdtf">2024-01-03</recordCreationDate>
+         <recordChangeDate encoding="w3cdtf">2024-01-03</recordChangeDate>
+         <recordIdentifier source="DGPO">CREC-2024-01-02</recordIdentifier>
+         <recordOrigin>machine generated</recordOrigin>
+         <languageOfCataloging>
+              <languageTerm type="code" authority="iso639-2b">eng</languageTerm>
+        </languageOfCataloging>
+    </recordInfo>
+    <accessCondition type="GPO scope determination">fdlp</accessCondition>
+    <extension>
+         <docClass>CREC</docClass>
+         <accessId>CREC-2024-01-02</accessId>
+         <volume>169</volume>
+         <issue>214</issue>
+         <congress>118</congress>
+         <session>1</session>
+         <bookCount>1</bookCount>
+    </extension>
+    <relatedItem type="constituent" ID="id-CREC-2024-01-02-pt1-PgD1333" xlink:href="https://www.govinfo.gov/metadata/granule/CREC-2024-01-02/CREC-2024-01-02-pt1-PgD1333/mods.xml">
+         <titleInfo>
+              <title>Daily Digest/Senate</title>
+              <partName>Daily Digest</partName>
+        </titleInfo>
+         <relatedItem type="otherFormat" xlink:href="https://www.govinfo.gov/content/pkg/CREC-2024-01-02/html/CREC-2024-01-02-pt1-PgD1333.htm">
+              <identifier type="FDsys Unique ID">D09002ee1c3855262</identifier>
+        </relatedItem>
+         <relatedItem type="otherFormat" xlink:href="https://www.govinfo.gov/content/pkg/CREC-2024-01-02/pdf/CREC-2024-01-02-pt1-PgD1333.pdf">
+              <identifier type="FDsys Unique ID">D09002ee1c3855621</identifier>
+        </relatedItem>
+         <identifier type="congressional record citation">169 Cong. Rec. D1333</identifier>
+         <identifier type="uri">https://www.govinfo.gov/app/details/CREC-2024-01-02/CREC-2024-01-02-pt1-PgD1333</identifier>
+         <identifier type="former granule identifier">cr02ja24-3</identifier>
+         <location>
+              <url displayLabel="Content Detail" access="object in context">https://www.govinfo.gov/app/details/CREC-2024-01-02/CREC-2024-01-02-pt1-PgD1333</url>
+              <url access="raw object" displayLabel="PDF rendition">https://www.govinfo.gov/content/pkg/CREC-2024-01-02/pdf/CREC-2024-01-02-pt1-PgD1333.pdf</url>
+              <url access="raw object" displayLabel="HTML rendition">https://www.govinfo.gov/content/pkg/CREC-2024-01-02/html/CREC-2024-01-02-pt1-PgD1333.htm</url>
+        </location>
+         <physicalDescription>
+              <extent>1 p.</extent>
+        </physicalDescription>
+         <part type="article">
+              <extent unit="pages">
+                   <start>D1333</start>
+                   <end>D1333</end>
+            </extent>
+        </part>
+         <identifier type="preferred citation">169 Cong. Rec. D1333</identifier>
+         <extension>
+              <searchTitle>Daily Digest/Senate; Congressional Record Vol. 169, No. 214</searchTitle>
+              <granuleClass>DAILYDIGEST</granuleClass>
+              <accessId>CREC-2024-01-02-pt1-PgD1333</accessId>
+              <subGranuleClass>DDSCHAMBER</subGranuleClass>
+              <pagePrefix>D</pagePrefix>
+              <bookNumber>1</bookNumber>
+              <chamber>SENATE</chamber>
+              <granuleDate>2024-01-02</granuleDate>
+        </extension>
+    </relatedItem>
+    <relatedItem type="constituent" ID="id-CREC-2024-01-02-pt1-PgD1333-2" xlink:href="https://www.govinfo.gov/metadata/granule/CREC-2024-01-02/CREC-2024-01-02-pt1-PgD1333-2/mods.xml">
+         <titleInfo>
+              <title>Daily Digest/Senate Committee Meetings</title>
+              <partName>Daily Digest</partName>
+        </titleInfo>
+         <relatedItem type="otherFormat" xlink:href="https://www.govinfo.gov/content/pkg/CREC-2024-01-02/html/CREC-2024-01-02-pt1-PgD1333-2.htm">
+              <identifier type="FDsys Unique ID">D09002ee1c3855605</identifier>
+        </relatedItem>
+         <relatedItem type="otherFormat" xlink:href="https://www.govinfo.gov/content/pkg/CREC-2024-01-02/pdf/CREC-2024-01-02-pt1-PgD1333-2.pdf">
+              <identifier type="FDsys Unique ID">D09002ee1c3855622</identifier>
+        </relatedItem>
+         <identifier type="congressional record citation">169 Cong. Rec. D1333</identifier>
+         <identifier type="uri">https://www.govinfo.gov/app/details/CREC-2024-01-02/CREC-2024-01-02-pt1-PgD1333-2</identifier>
+         <identifier type="former granule identifier">cr02ja24-4</identifier>
+         <location>
+              <url displayLabel="Content Detail" access="object in context">https://www.govinfo.gov/app/details/CREC-2024-01-02/CREC-2024-01-02-pt1-PgD1333-2</url>
+              <url access="raw object" displayLabel="PDF rendition">https://www.govinfo.gov/content/pkg/CREC-2024-01-02/pdf/CREC-2024-01-02-pt1-PgD1333-2.pdf</url>
+              <url access="raw object" displayLabel="HTML rendition">https://www.govinfo.gov/content/pkg/CREC-2024-01-02/html/CREC-2024-01-02-pt1-PgD1333-2.htm</url>
+        </location>
+         <physicalDescription>
+              <extent>1 p.</extent>
+        </physicalDescription>
+         <part type="article">
+              <extent unit="pages">
+                   <start>D1333</start>
+                   <end>D1333</end>
+            </extent>
+        </part>
+         <identifier type="preferred citation">169 Cong. Rec. D1333</identifier>
+         <extension>
+              <searchTitle>Daily Digest/Senate Committee Meetings; Congressional Record Vol. 169, No. 214</searchTitle>
+              <granuleClass>DAILYDIGEST</granuleClass>
+              <accessId>CREC-2024-01-02-pt1-PgD1333-2</accessId>
+              <subGranuleClass>DDSCMEETINGS</subGranuleClass>
+              <pagePrefix>D</pagePrefix>
+              <bookNumber>1</bookNumber>
+              <chamber>SENATE</chamber>
+              <granuleDate>2024-01-02</granuleDate>
+        </extension>
+    </relatedItem>
+    </mods>

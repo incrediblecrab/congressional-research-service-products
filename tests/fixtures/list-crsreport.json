@@ -1,0 +1,32 @@
+{
+ "CRSReports": [
+  {
+   "contentType": "Posts",
+   "id": "IN12740",
+   "publishDate": "2026-09-21T04:00:00Z",
+   "status": "Active",
+   "title": "SBA\u2019s Proposed Expansion of Small Business Program Eligibility",
+   "updateDate": "2026-09-23T17:54:27Z",
+   "url": "https://api.congress.gov/v3/crsreport/IN12740",
+   "version": 1
+  },
+  {
+   "contentType": "Reports",
+   "id": "RL34480",
+   "publishDate": "2026-09-23T04:00:00Z",
+   "status": "Active",
+   "title": "Enrollment of Legislation: Relevant Congressional Procedures",
+   "updateDate": "2026-09-23T17:54:25Z",
+   "url": "https://api.congress.gov/v3/crsreport/RL34480",
+   "version": 9
+  }
+ ],
+ "pagination": {
+  "count": 14140,
+  "next": "https://api.congress.gov/v3/crsreport?offset=2&limit=2&format=json"
+ },
+ "request": {
+  "contentType": "application/json",
+  "format": "json"
+ }
+}

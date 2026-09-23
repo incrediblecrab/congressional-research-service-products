@@ -1,0 +1,34 @@
+{
+ "pagination": {
+  "count": 175634,
+  "next": "https://api.congress.gov/v3/senate-communication?offset=2&limit=2&format=json"
+ },
+ "request": {
+  "contentType": "application/json",
+  "format": "json"
+ },
+ "senateCommunications": [
+  {
+   "chamber": "Senate",
+   "communicationType": {
+    "code": "EC",
+    "name": "Executive Communication"
+   },
+   "congress": 119,
+   "number": 4745,
+   "updateDate": "2026-09-23T10:15:20Z",
+   "url": "https://api.congress.gov/v3/senate-communication/119/ec/4745?format=json"
+  },
+  {
+   "chamber": "Senate",
+   "communicationType": {
+    "code": "EC",
+    "name": "Executive Communication"
+   },
+   "congress": 119,
+   "number": 4746,
+   "updateDate": "2026-09-23T10:15:20Z",
+   "url": "https://api.congress.gov/v3/senate-communication/119/ec/4746?format=json"
+  }
+ ]
+}

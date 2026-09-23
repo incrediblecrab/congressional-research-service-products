@@ -1,0 +1,110 @@
+# On the cron below: sync each lane within its time budget, then regenerate the dataset card, verify the Hub against its manifests and the sources, and squash long history.
+# Writes to Hugging Face use Trusted Publishing: with `id-token: write`, the CLI sets HF_OIDC_RESOURCE from its --repo, so no Hugging Face token is stored anywhere. The only secret is the api.data.gov key.
+name: pipeline
+
+on:
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      lanes:
+        description: 'JSON list of lanes, e.g. ["congress-crs"]; empty runs every lane'
+        default: ""
+      budget_minutes:
+        description: "Minutes each lane may sync (empty: the CLI default)"
+        default: ""
+      args:
+        description: "Extra run arguments for a bounded test, e.g. --local /tmp/smoke --partitions 118 --max-units 2 (skips publishing)"
+        default: ""
+
+permissions: {}
+
+concurrency:
+  group: pipeline
+  cancel-in-progress: false
+
+jobs:
+  lane:
+    runs-on: ubuntu-latest
+    # Above the CLI's default sync budget plus setup and the final commit; GitHub stops any job at 360.
+    timeout-minutes: 350
+    permissions:
+      contents: read
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        # Must equal ijab.collections.LANES; tests/test_cli.py fails when they differ.
+        lane: ${{ fromJSON(inputs.lanes || '["congress-api", "congress-crs", "govinfo-bulk", "govinfo-docs", "govinfo-record"]') }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.14"
+      - run: sudo apt-get update -q && sudo apt-get install -y -q poppler-utils
+      - run: pip install -q .
+      - name: Sync
+        env:
+          DATA_GOV_API_KEY: ${{ secrets.DATA_GOV_API_KEY }}
+          LANE: ${{ matrix.lane }}
+          BUDGET: ${{ inputs.budget_minutes }}
+          EXTRA_ARGS: ${{ inputs.args }}
+        run: |
+          set -o pipefail
+          python -m ijab run --lane "$LANE" ${BUDGET:+--budget-minutes "$BUDGET"} $EXTRA_ARGS | tee run.json
+      - name: Summary
+        if: ${{ !cancelled() }}
+        env:
+          LANE: ${{ matrix.lane }}
+        run: |
+          { echo "### $LANE"; echo '```json'; cat run.json 2>/dev/null; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+  publish:
+    needs: lane
+    if: ${{ !cancelled() && !inputs.args }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.14"
+      - run: pip install -q .
+      - name: Dataset card
+        run: python -m ijab card
+      - name: Verify against manifests and sources
+        env:
+          DATA_GOV_API_KEY: ${{ secrets.DATA_GOV_API_KEY }}
+        run: |
+          set -o pipefail
+          python -m ijab verify --live | tee verify.json
+      - name: Squash long history
+        run: python -m ijab squash
+      - name: Summary
+        if: ${{ !cancelled() }}
+        run: |
+          { echo "### verify"; echo '```json'; cat verify.json 2>/dev/null; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+  # GitHub disables schedules in a public repository after 60 days without repository activity.
+  keepalive:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - name: Commit if the repository has been idle for 45 days
+        run: |
+          idle=$(( $(date +%s) - $(git log -1 --format=%ct) ))
+          if [ "$idle" -gt $(( 45 * 86400 )) ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit --allow-empty -m "Keep the schedule enabled: no commit in 45 days"
+            git push
+          else
+            echo "last commit $(( idle / 86400 )) days ago"
+          fi

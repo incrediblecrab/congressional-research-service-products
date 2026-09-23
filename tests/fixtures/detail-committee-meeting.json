@@ -1,0 +1,155 @@
+{
+ "committeeMeeting": {
+  "chamber": "House",
+  "committees": [
+   {
+    "name": "House Small Business Subcommittee on Innovation, Entrepreneurship, and Workforce Development",
+    "systemCode": "hssm22",
+    "url": "https://api.congress.gov/v3/committee/house/hssm22?format=json"
+   }
+  ],
+  "congress": 119,
+  "date": "2026-09-15T15:00:00Z",
+  "eventId": "119541",
+  "location": {
+   "building": "Rayburn House Office Building",
+   "room": "2360"
+  },
+  "meetingDocuments": [
+   {
+    "description": "Public Notice",
+    "documentType": "Support Document",
+    "format": "PDF",
+    "name": "Public Notice",
+    "url": "https://www.congress.gov/119/meeting/house/119541/documents/HHRG-119-SM22-20260915-SD001.pdf"
+   },
+   {
+    "description": "Public Memo",
+    "documentType": "Support Document",
+    "format": "PDF",
+    "name": "Public Memo",
+    "url": "https://www.congress.gov/119/meeting/house/119541/documents/HHRG-119-SM22-20260915-SD002.pdf"
+   },
+   {
+    "description": "Hearing Attendance",
+    "documentType": "Hearing: Member Roster",
+    "format": "PDF",
+    "name": "Hearing Attendance",
+    "url": "https://www.congress.gov/119/meeting/house/119541/documents/HHRG-119-SM22-20260915-SD003.pdf"
+   },
+   {
+    "description": "UC-Majority-NCA Report-Letter for the Record",
+    "documentType": "Support Document",
+    "format": "PDF",
+    "name": "UC-Majority-NCA Report-Letter for the Record",
+    "url": "https://www.congress.gov/119/meeting/house/119541/documents/HHRG-119-SM22-20260915-SD004.pdf"
+   },
+   {
+    "description": "UC-Majority-NCA Merchant Report-Letter for the Record",
+    "documentType": "Support Document",
+    "format": "PDF",
+    "name": "UC-Majority-NCA Merchant Report-Letter for the Record",
+    "url": "https://www.congress.gov/119/meeting/house/119541/documents/HHRG-119-SM22-20260915-SD005.pdf"
+   },
+   {
+    "description": "UC-Majority-NCA-Letter for the Record",
+    "documentType": "Support Document",
+    "format": "PDF",
+    "name": "UC-Majority-NCA-Letter for the Record",
+    "url": "https://www.congress.gov/119/meeting/house/119541/documents/HHRG-119-SM22-20260915-SD003.pdf"
+   },
+   {
+    "description": "UC-Majority-MyStandard-Letter for the Record",
+    "documentType": "Support Document",
+    "format": "PDF",
+    "name": "UC-Majority-MyStandard-Letter for the Record",
+    "url": "https://www.congress.gov/119/meeting/house/119541/documents/HHRG-119-SM22-20260915-SD006.pdf"
+   }
+  ],
+  "meetingStatus": "Scheduled",
+  "title": "\u201cMain Street Meets Crypto: What Digital Assets Mean for Small Businesses.\u201d",
+  "type": "Hearing",
+  "updateDate": "2026-09-23T20:26:30Z",
+  "videos": [
+   {
+    "name": "Main Street Meets Crypto: What Digital Assets Mean for Small Businesses",
+    "url": "https://www.congress.gov/event/119th-Congress/house-event/119541"
+   },
+   {
+    "name": "Main Street Meets Crypto: What Digital Assets Mean for Small Businesses",
+    "url": "https://www.youtube.com/watch?v=iyOkpepjgtQ"
+   }
+  ],
+  "witnessDocuments": [
+   {
+    "documentType": "Witness Statement",
+    "format": "PDF",
+    "url": "https://www.congress.gov/119/meeting/house/119541/witnesses/HHRG-119-SM22-Wstate-ShirzadF-20260915.pdf"
+   },
+   {
+    "documentType": "Witness Biography",
+    "format": "PDF",
+    "url": "https://www.congress.gov/119/meeting/house/119541/witnesses/HHRG-119-SM22-Bio-ShirzadF-20260915.pdf"
+   },
+   {
+    "documentType": "Witness Truth in Testimony",
+    "format": "PDF",
+    "url": "https://www.congress.gov/119/meeting/house/119541/witnesses/HHRG-119-SM22-TTF-ShirzadF-20260915.pdf"
+   },
+   {
+    "documentType": "Witness Biography",
+    "format": "PDF",
+    "url": "https://www.congress.gov/119/meeting/house/119541/witnesses/HHRG-119-SM22-Bio-WuA-20260915.pdf"
+   },
+   {
+    "documentType": "Witness Statement",
+    "format": "PDF",
+    "url": "https://www.congress.gov/119/meeting/house/119541/witnesses/HHRG-119-SM22-Wstate-WuA-20260915.pdf"
+   },
+   {
+    "documentType": "Witness Truth in Testimony",
+    "format": "PDF",
+    "url": "https://www.congress.gov/119/meeting/house/119541/witnesses/HHRG-119-SM22-TTF-WuA-20260915.pdf"
+   },
+   {
+    "documentType": "Witness Biography",
+    "format": "PDF",
+    "url": "https://www.congress.gov/119/meeting/house/119541/witnesses/HHRG-119-SM22-Bio-LeventhalB-20260915.pdf"
+   },
+   {
+    "documentType": "Witness Statement",
+    "format": "PDF",
+    "url": "https://www.congress.gov/119/meeting/house/119541/witnesses/HHRG-119-SM22-Wstate-LeventhalB-20260915.pdf"
+   },
+   {
+    "documentType": "Witness Truth in Testimony",
+    "format": "PDF",
+    "url": "https://www.congress.gov/119/meeting/house/119541/witnesses/HHRG-119-SM22-TTF-LeventhalB-20260915.pdf"
+   }
+  ],
+  "witnesses": [
+   {
+    "name": "Mr. Faryar Shirzad",
+    "organization": "Coinbase",
+    "position": "Chief Policy Officer"
+   },
+   {
+    "name": "Ben Leventhal",
+    "organization": "Blackbird Labs, Inc.",
+    "position": "Chief Executive Officer"
+   },
+   {
+    "name": "Andrew Wu",
+    "organization": "Stephen M. Ross School of Business, University of Michigan",
+    "position": "Associate Professor of Technology and Operations, Faculty  Director, MBA AI Concentration, Faculty Co-Director, Michigan Ross Fintech  Initiative"
+   }
+  ]
+ },
+ "request": {
+  "chamber": "house",
+  "congress": "119",
+  "contentType": "application/json",
+  "eventId": "119541",
+  "format": "json"
+ }
+}
