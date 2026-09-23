@@ -156,6 +156,14 @@ CRS_PDF = "https://www.congress.gov/crs_external_products/IN/PDF/IN12740/IN12740
 CRS_HTML = "https://www.congress.gov/crs_external_products/IN/HTML/IN12740.html"
 
 
+def test_crs_live_counts_are_per_partition():
+    """The API totals only the whole collection, so a single total would be compared with whichever prefixes happen to be complete."""
+    listing = fixture_json("list-crsreport.json")
+    listing["pagination"] = {"count": len(listing["CRSReports"])}
+    crs = adapter(C.CrsReports, FakeFetcher(json_map={f"{C.API}/crsreport": listing}))
+    assert crs.live_counts(["IN"]) == {"IN": 1, "RL": 1}
+
+
 def crs(get_map):
     fetcher = FakeFetcher(json_map={C.strip_query(CRS_ITEM["url"]): fixture_json("detail-crsreport.json")}, get_map=get_map)
     return adapter(C.CrsReports, fetcher), Unit(CRS_ITEM["id"], CRS_ITEM["updateDate"], {"item": CRS_ITEM}), fetcher

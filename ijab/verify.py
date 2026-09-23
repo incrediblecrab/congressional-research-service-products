@@ -69,19 +69,14 @@ def check_collection(store, collection, fetcher=None, live=False, files=None, ha
         except Exception as error:  # noqa: BLE001 - an unreachable source is a verification failure, reported as such
             problems.append(f"{collection.name}: live count failed: {type(error).__name__}: {error}"[:300])
             return problems, summary
-        if "*" in counts:
-            pairs = [("*", summary["units"] + summary["failed_units"], counts["*"])] if len(complete) == len(keys) else []
-            source_total = counts["*"]
-        else:
-            pairs = [(key, units_by_key.get(key, 0) + exhausted[key], counts[key]) for key in complete if key in counts]
-            source_total = sum(counts.get(key, 0) for key in keys)
+        pairs = [(key, units_by_key.get(key, 0) + exhausted[key], counts[key]) for key in complete if key in counts]
         drift = 0
         for key, have, source in pairs:
             if abs(have - source) > tolerance(source):
                 drift += 1
                 problems.append(f"{collection.name}/{key}: {have} units (incl. failed) vs {source} at the source, beyond tolerance {tolerance(source)}")
-        summary.update({"live_compared": len(pairs), "live_drift": drift, "source_units": source_total,
-                        "source_partitions_not_started": len(set(counts) - set(keys) - {"*"})})
+        summary.update({"live_compared": len(pairs), "live_drift": drift, "source_units": sum(counts.get(key, 0) for key in keys),
+                        "source_partitions_not_started": len(set(counts) - set(keys))})
     return problems, summary
 
 

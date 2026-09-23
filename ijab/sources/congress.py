@@ -138,9 +138,9 @@ class ApiAdapter(Adapter):
             yield Partition(key, units)
 
     def live_counts(self, keys):
-        """Source counts from the API's own pagination totals, for verify."""
+        """Source counts from the API's own pagination totals, for verify. A collection partitioned by a field of the item has no per-partition total, so its full listing is counted per partition instead."""
         if self.spec.partition:
-            return {"*": self.count(self.spec.path)}
+            return {key: len(units) for key, units in self.group(self.pages(self.spec.path)).items()}
         if not self.spec.per_congress:
             return {"all": self.count(self.spec.path)}
         return {key: self.count(f"{self.spec.path}/{key}") for key in keys}
