@@ -48,7 +48,7 @@ def cmd_run(args):
                 runs.append({"collection": collection.name, "finished": False, "stopped": "not reached"})
                 continue
             deadline = now + (lane_end - now) / (len(collections) - index)
-            ctx = Context(fetcher=fetcher, store=store, deadline=deadline, only=only, max_units=args.max_units)
+            ctx = Context(fetcher=fetcher, store=store, deadline=deadline, only=only, max_units=args.max_units, refetch=args.refetch)
             runs.append(sync_collection(ctx, collection))
         store.commit(f"Run records: {args.lane or ','.join(c.name for c in collections)}")
     finally:
@@ -125,6 +125,7 @@ def main(argv=None):
     run.add_argument("--budget-minutes", type=float, default=320.0)
     run.add_argument("--partitions", help="comma-separated partition keys to sync; others are skipped (smoke tests)")
     run.add_argument("--max-units", type=int, help="fetch at most this many units per partition (smoke tests)")
+    run.add_argument("--refetch", action="store_true", help="fetch every unit of the selected partitions again, as after a parser change (use with --partitions: a partition that does not finish starts over)")
     add("card", cmd_card, "regenerate README.md on the Hub from the manifests")
     verify = add("verify", cmd_verify, "check files against manifests; --live also against source counts")
     verify.add_argument("--collections", help="comma-separated collection names (default: all)")

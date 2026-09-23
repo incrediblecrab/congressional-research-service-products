@@ -71,7 +71,7 @@ def render(manifests, data_files):
         "",
         "## Status",
         "",
-        f"A unit is what the source lists and dates (a package, an API item, a daily issue); most units give one row, a Congressional Record issue gives one row per granule. *Listed* is the number of units the source listed in the partitions synced so far; *failed* units were tried {MAX_ATTEMPTS} times and are recorded with their error in the manifest. A collection is complete when every partition it has started is complete; backfill runs until every partition is.",
+        f"A unit is what the source lists and dates (a package, an API item, a daily issue); most units give one row; a Congressional Record issue, or a document GovInfo publishes only in parts, gives one row per granule. *Listed* is the number of units the source listed in the partitions synced so far; *failed* units were tried {MAX_ATTEMPTS} times and are recorded with their error in the manifest. A collection is complete when every partition it has started is complete; backfill runs until every partition is.",
         "",
         "| Config | Rows | Rows with text | Units | Listed | Failed | Partitions complete | Last change (UTC) |",
         "|---|---:|---:|---:|---:|---:|---:|---|",

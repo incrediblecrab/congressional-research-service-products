@@ -87,6 +87,8 @@ class Context:
     """deadline is a time.monotonic() value; the lane runner sets it to each collection's share of the run.
 
     only (partition keys) and max_units (units fetched per partition) bound a run for smoke tests; a capped partition is written as incomplete and resumes on the next run.
+
+    refetch fetches every unit of the partitions the run reaches again, as after a parser change; a partition that does not finish starts over on the next refetch run.
     """
 
     fetcher: object
@@ -95,6 +97,7 @@ class Context:
     checkpoint_seconds: float = 2400.0
     only: frozenset | None = None
     max_units: int | None = None
+    refetch: bool = False
     stats: dict = field(default_factory=lambda: defaultdict(int))
 
     def out_of_time(self):
@@ -152,7 +155,7 @@ def sync_partition(ctx, collection, adapter, manifest, partition):
     entry = manifest["partitions"].get(partition.key) or {}
     failures = manifest.setdefault("failures", {})
     fingerprint = partition.fingerprint
-    if fingerprint and entry.get("complete") and entry.get("fingerprint") == fingerprint:
+    if fingerprint and entry.get("complete") and entry.get("fingerprint") == fingerprint and not ctx.refetch:
         entry["listed_at"] = utcnow()
         return True
 
@@ -171,10 +174,10 @@ def sync_partition(ctx, collection, adapter, manifest, partition):
     todo = []
     for uid in sorted(partition.units):
         unit = partition.units[uid]
-        if uid in by_unit and by_unit[uid][0]["updated_at"] == unit.updated_at:
+        if uid in by_unit and by_unit[uid][0]["updated_at"] == unit.updated_at and not ctx.refetch:
             continue
         failure = failures.get(uid)
-        if failure and failure["attempts"] >= MAX_ATTEMPTS and failure.get("updated_at") == unit.updated_at:
+        if failure and failure["attempts"] >= MAX_ATTEMPTS and failure.get("updated_at") == unit.updated_at and not ctx.refetch:
             continue
         todo.append(unit)
     if not todo and not removed and entry and fingerprint is None:

@@ -40,6 +40,21 @@ def test_idle_rerun_makes_no_request_and_no_commit(tmp_path):
     assert len(store.commits) == commits
 
 
+def test_refetch_fetches_unchanged_and_exhausted_units_again(tmp_path):
+    """After a parser change the stored rows are stale although the source is not."""
+    store = store_at(tmp_path)
+    collection, state = scripted_collection(units={"a": "1", "x": "1"}, fail={"x"})
+    for _ in range(MAX_ATTEMPTS):
+        run_once(store, collection)
+    assert partition(store)["complete"]
+    fetched = len(state.fetched)
+    state.fail = set()
+    result = run_once(store, collection, refetch=True)
+    entry = partition(store)
+    assert state.fetched[fetched:] == ["a", "x"]
+    assert result["fetched"] == 2 and entry["complete"] and (entry["units"], entry["failed_units"]) == (2, 0)
+
+
 def test_changed_new_and_removed_units(tmp_path):
     store = store_at(tmp_path)
     collection, state = scripted_collection(units={"a": "1", "b": "1", "c": "1"})

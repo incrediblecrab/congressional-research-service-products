@@ -151,6 +151,36 @@ def test_package_row_without_mods_uses_the_html():
     assert fetcher.requests == [mods, html], "long enough HTML text means the PDF is not fetched"
 
 
+@pytest.mark.skipif(shutil.which("pdftotext") is None, reason="needs poppler's pdftotext")
+def test_package_published_only_as_granules_gives_one_row_per_granule():
+    """CDOC-118sdoc2 has no package-level HTML or PDF; its two parts are granules, and a granule's HTML may only say to see its PDF."""
+    package, parts = "CDOC-118sdoc2", ["CDOC-118sdoc2-pt1", "CDOC-118sdoc2-pt2"]
+    content = f"{WWW}/content/pkg/{package}"
+    pdf = minimal_pdf("Report of the Secretary of the Senate, receipts and expenditures")
+    fetcher = FakeFetcher(json_map={f"{G.GOVINFO_API}/packages/{package}/granules": {"granules": [{"granuleId": part} for part in parts]}},
+                          get_map={f"{content}/html/{parts[0]}.htm": b"<html><body><pre>[TEXT NOT AVAILABLE REFER TO PDF]</pre></body></html>",
+                                   f"{content}/pdf/{parts[0]}.pdf": pdf,
+                                   f"{content}/html/{parts[1]}.htm": b"<html><body><pre>" + b"Part II. " * 200 + b"</pre></body></html>"})
+    documents = adapter(G.CongressionalDocuments, fetcher)
+    rows = documents.fetch(Unit(package, "t"))
+    assert [row["id"] for row in rows] == parts
+    assert {documents.unit_of(row) for row in rows} == {package}
+    assert (rows[0]["text_source"], rows[0]["text_url"], rows[0]["text_sha256"]) == ("govinfo-pdf", f"{content}/pdf/{parts[0]}.pdf", hashlib.sha256(pdf).hexdigest())
+    assert rows[0]["text"] == "Report of the Secretary of the Senate, receipts and expenditures"
+    assert (rows[1]["text_source"], rows[1]["text_url"], rows[1]["url"]) == ("govinfo-html", f"{content}/html/{parts[1]}.htm", f"{WWW}/app/details/{package}/{parts[1]}")
+    assert all(row["congress"] == 118 for row in rows)
+
+
+def test_legacy_law_keeps_one_row_per_unit():
+    """LawsAll is a Composite that maps rows to units by id, so a legacy law never takes the granule fallback."""
+    package = "PLAW-110publ252"
+    granules = f"{G.GOVINFO_API}/packages/{package}/granules"
+    fetcher = FakeFetcher(json_map={granules: {"granules": [{"granuleId": f"{package}-pt1"}]}})
+    [row] = adapter(G.LegacyLaws, fetcher, name="laws").fetch(Unit(package, "t"))
+    assert (row["id"], row["congress"], row["type"], row["number"], row["text"]) == (package, 110, "publ", "252", None)
+    assert granules not in fetcher.requests
+
+
 CRS_ITEM = fixture_json("list-crsreport.json")["CRSReports"][0]
 CRS_PDF = "https://www.congress.gov/crs_external_products/IN/PDF/IN12740/IN12740.3.pdf"
 CRS_HTML = "https://www.congress.gov/crs_external_products/IN/HTML/IN12740.html"

@@ -261,16 +261,26 @@ class GovInfoApi:
         params = {"offsetMark": "*", "pageSize": 1, **({"congress": congress} if congress is not None else {})}
         return int((self.fetcher.json(f"{GOVINFO_API}/collections/{code}/{EPOCH}", params=params) or {}).get("count") or 0)
 
+    def granules(self, package):
+        """Granule ids of one package. The API lists granules the package MODS can omit (CDOC-118sdoc13-pt1, measured 09/23/2026)."""
+        url, params = f"{GOVINFO_API}/packages/{package}/granules", {"offsetMark": "*", "pageSize": 1000}
+        while url:
+            data = self.fetcher.json(url, params=params) or {}
+            items = data.get("granules") or []
+            yield from (item["granuleId"] for item in items if item.get("granuleId"))
+            url, params = (data.get("nextPage") if items else None), None
+
 
 CONGRESS_OF = re.compile(r"^[A-Z]+-(\d+)")
 
 
-def package_text(fetcher, package):
-    """(text, text_source, text_url, sha256 of fetched bytes, html title) for a single-document package.
+def package_text(fetcher, package, name=None):
+    """(text, text_source, text_url, sha256 of fetched bytes, html title) for a single-document package, or for its granule `name`.
 
     The HTML rendition is preferred; the PDF text layer is used when the HTML is missing or shorter than MIN_TEXT_CHARS.
     """
-    html_link = f"{WWW}/content/pkg/{package}/html/{package}.htm"
+    name = name or package
+    html_link = f"{WWW}/content/pkg/{package}/html/{name}.htm"
     response = fetcher.get(html_link)
     best = (None, None, None, None, None)
     if response.status_code == 200:
@@ -280,7 +290,7 @@ def package_text(fetcher, package):
             return best
     elif response.status_code != 404:
         response.raise_for_status()
-    pdf_link = f"{WWW}/content/pkg/{package}/pdf/{package}.pdf"
+    pdf_link = f"{WWW}/content/pkg/{package}/pdf/{name}.pdf"
     response = fetcher.get(pdf_link)
     if response.status_code == 200 and response.content[:5] == b"%PDF-":
         text = T.pdf_text(response.content)
@@ -294,6 +304,8 @@ def package_text(fetcher, package):
 class PackageAdapter(Adapter):
     """API-listed packages holding one document each: text from package_text(), metadata from MODS.
 
+    A package GovInfo publishes only as granules (multi-part documents such as the Report of the Secretary of the Senate, CDOC-118sdoc2 and CDOC-118sdoc13) gives one row per granule, so each row keeps its own text_url and hash.
+
     Only packages whose id starts with the collection code are congress.gov documents; the rest are other GovInfo series. congresses=None lists the whole collection in one pass; a range lists Congress by Congress (used for legacy slices).
     """
 
@@ -303,6 +315,10 @@ class PackageAdapter(Adapter):
     def partition_key(self, package):
         match = CONGRESS_OF.match(package)
         return match.group(1) if match else None
+
+    def unit_of(self, row):
+        # A granule row names its package only in the details URL: two Record issues can share a date (CREC-2025-01-03-v170 and -v171) while their granule ids carry only the date.
+        return row["url"].split("/app/details/", 1)[1].split("/", 1)[0]
 
     def listing(self):
         api = GovInfoApi(self.ctx.fetcher)
@@ -325,7 +341,11 @@ class PackageAdapter(Adapter):
         return dict(Counter(self.partition_key(pid) for pid, _ in self.listing()))
 
     def fetch(self, unit):
-        package = unit.id
+        row = self.package_row(unit.id)
+        granules = list(GovInfoApi(self.ctx.fetcher).granules(unit.id)) if row["text"] is None else []
+        return [self.granule_row(row, unit.id, granule) for granule in granules] or [row]
+
+    def package_row(self, package):
         mods_response = self.ctx.fetcher.get(f"{WWW}/metadata/pkg/{package}/mods.xml")
         if mods_response.status_code not in (200, 404):
             mods_response.raise_for_status()
@@ -333,13 +353,17 @@ class PackageAdapter(Adapter):
         title, issued, extension = mods_fields(mods) if mods else (None, None, {})
         text, source, link, digest, html_title = package_text(self.ctx.fetcher, package)
         held = first(extension.get("heldDate"))
-        return [{
+        return {
             "id": package, "congress": as_int(extension.get("congress")) or as_int(self.partition_key(package)),
             "type": (extension.get("docClass") or "").lower() or None, "number": extension.get("number"),
             "chamber": T.chamber_of(extension.get("chamber")), "title": title or html_title,
             "date": held if isinstance(held, str) else issued, "url": details_url(package),
             "text": text, "text_source": source, "text_url": link, "text_sha256": digest, "metadata": dumps(mods) if mods else None,
-        }]
+        }
+
+    def granule_row(self, row, package, granule):
+        text, source, link, digest, _ = package_text(self.ctx.fetcher, package, granule)
+        return {**row, "id": granule, "url": details_url(package, granule), "text": text, "text_source": source, "text_url": link, "text_sha256": digest}
 
 
 def as_int(value):
@@ -386,11 +410,12 @@ class LegacyLaws(PackageAdapter):
         return govinfo_counts(self.ctx.fetcher, self.code, keys)
 
     def fetch(self, unit):
-        rows = super().fetch(unit)
+        # One row per unit, without the granule fallback: LawsAll, a Composite, maps rows to units by id.
+        row = self.package_row(unit.id)
         match = LAW_ID.match(unit.id)
         if match:
-            rows[0].update({"congress": int(match.group(1)), "type": match.group(2), "number": match.group(3)})
-        return rows
+            row.update({"congress": int(match.group(1)), "type": match.group(2), "number": match.group(3)})
+        return [row]
 
 
 def govinfo_counts(fetcher, code, keys):
@@ -461,10 +486,6 @@ class CongressionalRecord(PackageAdapter):
     def partition_key(self, package):
         match = re.match(r"^CREC-(\d{4})-", package)
         return match.group(1) if match else None
-
-    def unit_of(self, row):
-        # Two issues can share a date (CREC-2025-01-03-v170 and -v171), so the package comes from the row's details URL.
-        return row["url"].split("/app/details/", 1)[1].split("/", 1)[0]
 
     def fetch(self, unit):
         package = unit.id

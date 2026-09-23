@@ -9,7 +9,7 @@
 **Jobs:**
 
 - `lane`: one parallel job per lane, each spending its own rate limit and syncing its collections within the time budget.
-- `publish`: regenerates the dataset card, runs `verify --live` and squashes long history. Runs that set `args` (bounded tests) skip it.
+- `publish`: regenerates the dataset card, runs `verify --live` and squashes long history. Runs that set `args` skip it: bounded tests, or a refetch after a parser change (`lanes` set to the collection's one lane, `args` to `--collections NAME --partitions KEY --refetch`).
 - `keepalive`: makes an empty commit once the repository has had none for 45 days, because GitHub disables schedules after 60 days without activity.
 
 `.github/` itself has no README, because GitHub would display it in place of the repository README.
