@@ -17,7 +17,7 @@ from pathlib import Path
 
 import pyarrow as pa
 import pyarrow.parquet as pq
-from huggingface_hub import CommitOperationAdd, HfApi, HfFileSystem, hf_hub_download
+from huggingface_hub import CommitOperationAdd, DatasetCard, HfApi, HfFileSystem, hf_hub_download
 from huggingface_hub.errors import EntryNotFoundError, HfHubHTTPError, RemoteEntryNotFoundError
 
 SCHEMA = pa.schema([
@@ -182,6 +182,10 @@ class LocalStore(_Staging):
         text = self.read_text(MANIFEST)
         return json.loads(text) if text else None
 
+    def read_card_data(self):
+        text = self.read_text(CARD)
+        return DatasetCard(text).data.to_dict() if text else {}
+
     def read_partition(self, key):
         path = self.root / partition_path(key)
         return read_parquet(path) if path.exists() else []
@@ -218,7 +222,9 @@ class HubStore(_Staging):
         self.repo_id = repo_id
         self.api = api or HfApi(token=token)
         # Before the scratch directory exists, so a Hub that cannot be reached leaves nothing behind.
-        self.revision = self.api.dataset_info(repo_id).sha
+        info = self.api.dataset_info(repo_id)
+        self.revision = info.sha
+        self.card_data = info.card_data.to_dict() if info.card_data else {}
         super().__init__(workdir, card)
         self.superseded = None
 
@@ -233,6 +239,10 @@ class HubStore(_Staging):
     def read_manifest(self):
         text = self.read_text(MANIFEST)
         return json.loads(text) if text else None
+
+    def read_card_data(self):
+        """The card's front matter as the Hub parsed it, from the dataset_info call that found the revision: no file is downloaded."""
+        return self.card_data
 
     def read_partition(self, key):
         local = self._download(partition_path(key))

@@ -9,6 +9,8 @@ import pytest
 from huggingface_hub.errors import HfHubHTTPError
 
 from crs_products import store as store_module
+from crs_products.cli import read_probe_state
+from crs_products.pipeline import PROBE_KEY, new_manifest, probe_state
 from crs_products.store import HubStore, Superseded, git_blob_sha1, partition_of, read_parquet, write_parquet
 
 
@@ -25,9 +27,10 @@ class FakeApi:
     def __init__(self):
         self.head, self.files, self.commits, self.attempts = "c0", {}, [], 0
         self.lose_next_response = False
+        self.card_data = None
 
     def dataset_info(self, repo_id):
-        return SimpleNamespace(sha=self.head)
+        return SimpleNamespace(sha=self.head, card_data=self.card_data)
 
     def create_commit(self, repo_id, operations, commit_message, repo_type, parent_commit):
         self.attempts += 1
@@ -110,6 +113,20 @@ def test_a_412_whose_head_holds_a_different_manifest_is_superseded(hub):
 def test_git_blob_sha1_matches_git():
     assert git_blob_sha1(b"") == "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
     assert git_blob_sha1(b"hello\n") == "ce013625030ba8dba906f756967f9e9ca394464a"
+
+
+def test_the_probe_reads_the_hub_cards_state_without_downloading_a_file(tmp_path, monkeypatch):
+    state = probe_state(dict(new_manifest(), writer={"by": "local", "at": "2026-09-24T21:13:28Z"}))
+    downloads = []
+    monkeypatch.setattr(HubStore, "_download", lambda self, repo_path: downloads.append(repo_path))
+    api = FakeApi()
+    api.card_data = SimpleNamespace(to_dict=lambda: {"license": "other", PROBE_KEY: state})
+    assert read_probe_state(HubStore("x/y", workdir=tmp_path, api=api)) == (state, "card") and downloads == []
+    # A card rendered before it carried the state, or carrying another version of it: the probe falls back to the manifest, a file download.
+    for data in ({"license": "other"}, {PROBE_KEY: dict(state, version=state["version"] + 1)}):
+        downloads.clear()
+        api.card_data = SimpleNamespace(to_dict=lambda: data)
+        assert read_probe_state(HubStore("x/y", workdir=tmp_path, api=api)) == (None, "manifest") and downloads == ["manifest.json"]
 
 
 @pytest.mark.parametrize("uid, key", [("R49359", "R49"), ("RL34480", "RL34"), ("IN12740", "IN12"), ("LSB11001", "LSB11"), ("R40", "R0"), ("98-684", "numeric"), ("", "other"), ("abc", "other")])

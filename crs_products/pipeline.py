@@ -9,6 +9,7 @@ import copy
 import hashlib
 import logging
 import os
+import re
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -36,6 +37,9 @@ FATAL = (Blocked, QuotaExhausted, MissingKey, Superseded)
 # Runs that stopped for these reasons did their job; any other stop is a failed run, and the probe backs off after it.
 CLEAN_STOPS = (None, "budget")
 STAMP = "%Y-%m-%dT%H:%M:%SZ"
+# The card's front-matter key for probe_state(), and the shape it has; a card with another version is ignored and the probe reads the manifest.
+PROBE_KEY = "crs_products_probe"
+PROBE_STATE_VERSION = 1
 
 
 def utcnow():
@@ -123,21 +127,41 @@ def backoff_minutes(runs):
     return min(24 * 60, 15 * 2 ** (failed - 1)) if failed else 0
 
 
-def decide(manifest, head, writer):
-    """Whether a full sync is needed, from the manifest on the Hub and one request's worth of listing (count and newest). Returns (needed, reason)."""
+def probe_state(manifest):
+    """What decide() reads from the manifest. The card carries it in its front matter, so the probe gets it with the repo's metadata, an API call, instead of downloading manifest.json, which the Hub counts as a download. Failed runs keep only their exception's name, so no error text reaches the card's YAML."""
     if not manifest:
+        return None
+    failed = []
+    for run in reversed(manifest.get("runs") or []):
+        if run.get("stopped") in CLEAN_STOPS:
+            break
+        failed.insert(0, {"stopped": re.match(r"\w*", run.get("stopped") or "").group(0) or "failed", "ended": run.get("ended")})
+    listing = manifest.get("listing")
+    stored = manifest.get("partitions") or {}
+    return {
+        "version": PROBE_STATE_VERSION,
+        "writer": manifest.get("writer"),
+        "failed_runs": failed,
+        "listing": {key: listing.get(key) for key in ("count", "newest", "at")} if listing else None,
+        "incomplete": sorted(key for key in (listing or {}).get("partitions") or {} if not (stored.get(key) or {}).get("complete")),
+    }
+
+
+def decide(state, head, writer):
+    """Whether a full sync is needed, from probe_state() (as the card carries it, or computed from the manifest) and one request's worth of listing (count and newest). Returns (needed, reason)."""
+    if not state:
         return True, "no manifest yet"
-    holder = other_writer(manifest, writer)
+    holder = other_writer(state, writer)
     if holder:
         return False, f"deferred: {holder['by']} holds the lease (wrote at {holder['at']})"
-    runs = manifest.get("runs") or []
+    runs = state["failed_runs"]
     wait = backoff_minutes(runs)
     if wait and age_hours(runs[-1].get("ended")) * 60 < wait:
         return False, f"backing off {wait} minutes after a failed run: {runs[-1].get('stopped')}"
-    listing = manifest.get("listing")
+    listing = state["listing"]
     if not listing:
         return True, "never listed"
-    incomplete = sorted(key for key in listing.get("partitions") or {} if not (manifest["partitions"].get(key) or {}).get("complete"))
+    incomplete = state["incomplete"]
     if incomplete:
         return True, f"{len(incomplete)} partitions incomplete: {', '.join(incomplete[:5])}"
     if head["count"] != listing.get("count"):

@@ -11,7 +11,7 @@ import httpx
 from huggingface_hub.errors import HfHubHTTPError
 
 from .http import Fetcher, QuotaExhausted, Unavailable
-from .pipeline import CLEAN_STOPS, Context, decide, sync, utcnow, writer_identity
+from .pipeline import CLEAN_STOPS, PROBE_KEY, PROBE_STATE_VERSION, Context, decide, probe_state, sync, utcnow, writer_identity
 from .source import CrsSource
 from .store import CARD, SQUASH_AFTER_COMMITS
 
@@ -79,13 +79,21 @@ def cmd_run(args):
     return 1
 
 
+def read_probe_state(store):
+    """probe_state() as the card carries it, which costs no file download; from the manifest when the card has none of this version (a card rendered before it carried one). Returns (state, where it came from)."""
+    state = store.read_card_data().get(PROBE_KEY)
+    if isinstance(state, dict) and state.get("version") == PROBE_STATE_VERSION:
+        return state, "card"
+    return probe_state(store.read_manifest()), "manifest"
+
+
 def cmd_probe(args):
-    """One API request and one manifest read: prints the decision, and writes needed=true|false to $GITHUB_OUTPUT."""
+    """One API request and one read of the repo's metadata: prints the decision, and writes needed=true|false to $GITHUB_OUTPUT."""
     fetcher = Fetcher()
     try:
         store = open_store(args)
         try:
-            manifest = store.read_manifest()
+            state, origin = read_probe_state(store)
         finally:
             store.close()
         head = CrsSource(fetcher).head()
@@ -97,8 +105,8 @@ def cmd_probe(args):
         return 0
     finally:
         fetcher.close()
-    needed, reason = decide(manifest, head, writer_identity())
-    print(json.dumps({"needed": needed, "reason": reason, "head": head, "at": utcnow()}))
+    needed, reason = decide(state, head, writer_identity())
+    print(json.dumps({"needed": needed, "reason": reason, "head": head, "state_from": origin, "at": utcnow()}))
     github_output(needed="true" if needed else "false")
     return 0
 

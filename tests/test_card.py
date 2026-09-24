@@ -4,7 +4,7 @@ import yaml
 from huggingface_hub import DatasetCard
 
 from crs_products.card import COLUMN_DOCS, render
-from crs_products.pipeline import new_manifest
+from crs_products.pipeline import PROBE_KEY, new_manifest, probe_state
 from crs_products.store import COLUMNS
 from conftest import local_store, run_once, scripted
 
@@ -50,3 +50,15 @@ def test_every_column_is_documented_in_the_schema_table():
     assert set(COLUMN_DOCS) == set(COLUMNS)
     for column in COLUMNS:
         assert f"| `{column}` |" in card
+
+
+def test_the_front_matter_carries_the_probe_state_and_no_error_text(tmp_path):
+    store, state = local_store(tmp_path), scripted(units={"R40001": T1, "R40002": T1}, stop_after=1)
+    run_once(store, state)
+    manifest = store.read_manifest()
+    assert front_matter(render(manifest))[PROBE_KEY] == probe_state(manifest) and probe_state(manifest)["incomplete"] == []
+    reason = "HTTPStatusError: Client error '404 Not Found' for url \"https://x/y?a=b\": #1\n---\nkey: value"
+    manifest["runs"].append({"stopped": reason, "ended": T1})
+    meta = front_matter(render(manifest))
+    assert meta[PROBE_KEY]["failed_runs"] == [{"stopped": "HTTPStatusError", "ended": T1}] and "key" not in meta
+    assert reason not in render(manifest).partition("\n---\n")[0]

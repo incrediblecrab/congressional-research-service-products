@@ -6,12 +6,21 @@ import pytest
 
 from crs_products import pipeline
 from crs_products.http import Blocked
-from crs_products.pipeline import MAX_ATTEMPTS, Partition, Unit, decide, order
+from crs_products.pipeline import MAX_ATTEMPTS, PROBE_KEY, Partition, Unit, decide, order, probe_state
 from crs_products.store import CARD, MANIFEST, LocalStore, Superseded
 from crs_products.card import render
+from huggingface_hub import DatasetCard
 from conftest import ScriptedSource, local_store, run_once, scripted
 
 T1, T2 = "2026-09-01T10:00:00Z", "2026-09-02T10:00:00Z"
+
+
+def decide_both(manifest, head, writer):
+    """decide() from probe_state(manifest), and from the copy of it in the front matter of the card rendered from the manifest, which the probe reads from the Hub; the two must agree."""
+    direct = decide(probe_state(manifest), head, writer)
+    carried = DatasetCard(render(manifest)).data.to_dict().get(PROBE_KEY)
+    assert decide(carried, head, writer) == direct
+    return direct
 
 
 def stored(store, key):
@@ -35,7 +44,7 @@ def test_first_sync_stores_every_product_and_publishes_the_listing(tmp_path):
     assert m["writer"]["by"] == "local" and m["runs"][-1]["fetched"] == 4
     row = stored(store, "R40")["R40001"]
     assert row["updated_at"] == T1 and row["fetched_at"] and row["authors"] == ["A. Author"]
-    assert decide(m, ScriptedSource(state).head(), "local") == (False, "up to date")
+    assert decide_both(m, ScriptedSource(state).head(), "local") == (False, "up to date")
 
 
 def test_every_commit_carries_the_manifest_and_the_card_rendered_from_it(tmp_path):
@@ -164,7 +173,7 @@ def test_a_run_cut_by_the_budget_resumes_without_refetching(tmp_path):
     assert run["stopped"] == "budget" and len(stored(store, "R40")) == 2
     m = store.read_manifest()
     assert not m["partitions"]["R40"]["complete"] and m["listing"] is None, "only a finished run publishes the listing"
-    assert decide(m, ScriptedSource(state).head(), "local")[0]
+    assert decide_both(m, ScriptedSource(state).head(), "local")[0]
     state.stop_after = None
     state.fetched.clear()
     run = run_once(store, state)
@@ -215,7 +224,7 @@ def test_a_fatal_error_keeps_the_fetched_work_and_backs_the_probe_off(tmp_path):
     m = store.read_manifest()
     assert m["failures"] == {}, "a fatal error is not held against the product"
     assert m["runs"][-1]["stopped"].startswith("Blocked")
-    needed, reason = decide(m, ScriptedSource(state).head(), "local")
+    needed, reason = decide_both(m, ScriptedSource(state).head(), "local")
     assert not needed and reason.startswith("backing off 15 minutes")
 
 
@@ -253,16 +262,18 @@ def test_decide():
     head = {"count": 3, "newest": f"R40003@{T2}"}
     listing = {"count": 3, "newest": f"R40003@{T2}", "listed": 3, "at": stamp(10), "partitions": {"R40": 3}}
     done = {"partitions": {"R40": {"complete": True}}, "listing": listing, "runs": [{"stopped": None, "ended": stamp(10)}], "writer": {"by": "local", "at": stamp(10)}}
-    assert decide(None, head, "local") == (True, "no manifest yet")
-    assert decide(done, head, "local") == (False, "up to date")
-    assert decide(done, head, "github-actions")[1].startswith("deferred")
-    assert decide(dict(done, writer={"by": "local", "at": stamp(50)}), head, "github-actions") == (False, "up to date")
-    assert decide(dict(done, listing=None), head, "local") == (True, "never listed")
-    assert decide(dict(done, partitions={"R40": {"complete": False}}), head, "local")[1].startswith("1 partitions incomplete")
-    assert decide(done, dict(head, count=4), "local") == (True, "count 3 -> 4")
-    assert decide(done, dict(head, newest="R40004@x"), "local")[1].startswith("newest")
-    assert decide(dict(done, listing=dict(listing, at=stamp(25 * 60))), head, "local")[1].startswith("last full listing")
+    assert decide_both(None, head, "local") == (True, "no manifest yet")
+    assert decide_both(done, head, "local") == (False, "up to date")
+    assert decide_both(done, head, "github-actions")[1].startswith("deferred")
+    assert decide_both(dict(done, writer={"by": "local", "at": stamp(50)}), head, "github-actions") == (False, "up to date")
+    assert decide_both(dict(done, listing=None), head, "local") == (True, "never listed")
+    assert decide_both(dict(done, partitions={"R40": {"complete": False}}), head, "local")[1].startswith("1 partitions incomplete")
+    assert decide_both(done, dict(head, count=4), "local") == (True, "count 3 -> 4")
+    assert decide_both(done, dict(head, newest="R40004@x"), "local")[1].startswith("newest")
+    assert decide_both(dict(done, listing=dict(listing, at=stamp(25 * 60))), head, "local")[1].startswith("last full listing")
     failed = [{"stopped": "Blocked: x", "ended": stamp(5)}]
-    assert decide(dict(done, runs=failed), head, "local")[1].startswith("backing off 15 minutes")
-    assert decide(dict(done, runs=failed * 3), head, "local")[1].startswith("backing off 60 minutes")
-    assert decide(dict(done, runs=[{"stopped": "Blocked: x", "ended": stamp(20)}]), head, "local") == (False, "up to date")
+    assert decide_both(dict(done, runs=failed), head, "local")[1] == "backing off 15 minutes after a failed run: Blocked"
+    assert decide_both(dict(done, runs=failed * 3), head, "local")[1].startswith("backing off 60 minutes")
+    assert decide_both(dict(done, runs=failed * 2 + [{"stopped": "budget", "ended": stamp(5)}]), head, "local") == (False, "up to date")
+    assert decide_both(dict(done, runs=[{"stopped": "budget", "ended": stamp(9)}] + failed), head, "local")[1].startswith("backing off 15 minutes")
+    assert decide_both(dict(done, runs=[{"stopped": "Blocked: x", "ended": stamp(20)}]), head, "local") == (False, "up to date")

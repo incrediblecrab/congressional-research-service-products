@@ -1,4 +1,4 @@
-# On the schedule, probe: one API request for the product count and the newest product, and one read of the manifest on the Hub. When the probe says a sync is needed, sync within the time budget; after a sync that committed, verify the Hub against the manifest and the API, and squash long history. A sync that ran out of budget while still fetching starts the next run itself.
+# On the schedule, probe: one API request for the product count and the newest product, and one read of the dataset's metadata, whose card carries the lease, backoff and listing state from the manifest (downloading manifest.json itself would count as a dataset download). When the probe says a sync is needed, sync within the time budget; after a sync that committed, verify the Hub against the manifest and the API, and squash long history. A sync that ran out of budget while still fetching starts the next run itself.
 # Writes to Hugging Face use Trusted Publishing: with `id-token: write`, the CLI sets HF_OIDC_RESOURCE from its --repo, so no Hugging Face token is stored anywhere. The only secret is the api.data.gov key.
 name: pipeline
 

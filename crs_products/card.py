@@ -1,9 +1,10 @@
 """Renders the dataset card (README.md on the Hub) from the manifest alone, so it is staged with every manifest commit and never disagrees with it."""
 
+import json
 import re
 from collections import defaultdict
 
-from .pipeline import MAX_ATTEMPTS, RETRY_AFTER_HOURS, TEXT_RETRY_HOURS
+from .pipeline import MAX_ATTEMPTS, PROBE_KEY, RETRY_AFTER_HOURS, TEXT_RETRY_HOURS, probe_state
 from .store import SCHEMA
 from .verify import TOLERANCE_MIN
 
@@ -59,6 +60,9 @@ def render(manifest):
              "size_categories:", f"- {size_category(rows)}"]
     if entries:
         lines += ["configs:", "- config_name: default", "  data_files:", "  - split: train", "    path: data/*.parquet"]
+    state = probe_state(manifest)
+    if state:
+        lines.append(f"{PROBE_KEY}: {json.dumps(state, sort_keys=True)}")
     lines += ["---", "", "# Congressional Research Service Products", ""]
     lines += [
         "Every product of the Congressional Research Service (CRS) that the [Congress.gov API](https://api.congress.gov) lists, active and archived, with full text and metadata: Reports, Posts, Resources, Testimony and Infographics, as the API names them. CRS writes them for Members of Congress; Congress.gov publishes them.",
@@ -121,6 +125,8 @@ def render(manifest):
         "## How it stays current",
         "",
         "A GitHub Actions job is scheduled every 5 minutes to ask the API for its product count and its most recently updated product: one request. When either changed, or once a day regardless, the job lists every product and fetches the ones that are new or whose `updateDate` changed, removes the ones the API no longer has, and commits the changed partitions with this card. A job that runs out of time while still fetching starts the next one itself.",
+        "",
+        f"The check reads who wrote last and which partitions are incomplete from `{PROBE_KEY}` in this card's metadata rather than downloading `manifest.json`. The Hub counts file downloads, so checks stay out of the download count; syncs, which download files, are in it.",
         "",
         "GitHub starts scheduled jobs late, or drops them, when it is busy: from 06:01 to 15:26 UTC on September 24, 2026, it started 1 of the 113 jobs this schedule asked for. So a new product can take hours to appear, and the delay is not fixed.",
         "",

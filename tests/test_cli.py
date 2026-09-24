@@ -1,5 +1,6 @@
 """The CLI's contract with the workflow: exit codes, $GITHUB_OUTPUT keys, Trusted Publishing, and a workflow that calls only commands, options and outputs the CLI has."""
 
+import json
 import os
 import re
 import subprocess
@@ -14,7 +15,8 @@ from huggingface_hub.errors import HfHubHTTPError
 from crs_products import cli
 from crs_products.http import Unavailable
 from crs_products.pipeline import Context
-from conftest import ScriptedSource, scripted
+from crs_products.store import CARD, LocalStore
+from conftest import ScriptedSource, local_store, run_once, scripted
 
 WORKFLOW = Path(__file__).parent.parent / ".github" / "workflows" / "pipeline.yml"
 # What each command writes to $GITHUB_OUTPUT. The probe and run tests check the commands against this, and the workflow test checks the workflow's if: expressions against it.
@@ -124,6 +126,28 @@ def test_probe_asks_for_a_sync_when_the_hub_has_no_manifest(actions, monkeypatch
     assert cli.main(["probe", "--local", str(tmp_path)]) == 0
     assert outputs(actions) == {"needed": "true"} and set(outputs(actions)) == OUTPUTS["probe"]
     assert '"reason": "no manifest yet"' in capsys.readouterr().out
+
+
+def test_probe_decides_from_the_card_without_reading_the_manifest(actions, monkeypatch, tmp_path, capsys):
+    state = scripted(units={"R40001": "2026-09-01T10:00:00Z", "IN12001": "2026-09-02T10:00:00Z"})
+    run_once(local_store(tmp_path), state, writer="github-actions")
+    monkeypatch.setattr(cli, "CrsSource", FakeSource(head=ScriptedSource(state).head()))
+    monkeypatch.setattr(LocalStore, "read_manifest", lambda self: pytest.fail("planted: the probe read the manifest"))
+    assert cli.main(["probe", "--local", str(tmp_path / "hub")]) == 0
+    out = json.loads(capsys.readouterr().out)
+    assert (out["needed"], out["reason"], out["state_from"]) == (False, "up to date", "card") and outputs(actions) == {"needed": "false"}
+
+
+@pytest.mark.parametrize("card", ["---\nlicense: other\n---\n# a card from before the probe state\n", None])
+def test_probe_falls_back_to_the_manifest_when_the_card_has_no_state(actions, monkeypatch, tmp_path, capsys, card):
+    state = scripted(units={"R40001": "2026-09-01T10:00:00Z"})
+    run_once(local_store(tmp_path), state, writer="github-actions")
+    readme = tmp_path / "hub" / CARD
+    readme.write_text(card) if card else readme.unlink()
+    monkeypatch.setattr(cli, "CrsSource", FakeSource(head=dict(ScriptedSource(state).head(), count=2)))
+    assert cli.main(["probe", "--local", str(tmp_path / "hub")]) == 0
+    out = json.loads(capsys.readouterr().out)
+    assert (out["needed"], out["reason"], out["state_from"]) == (True, "count 1 -> 2", "manifest")
 
 
 @pytest.mark.parametrize("error", [Unavailable("HTTP 503 from api.congress.gov/v3/crsreport"), hub_error(503, "503 Server Error"), hub_error(429, "429 Too Many Requests"), httpx.ConnectError("refused")])
