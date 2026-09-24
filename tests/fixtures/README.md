@@ -1,16 +1,13 @@
 # fixtures
 
-Real source responses, trimmed to what the tests need, recorded September 23, 2026.
+Real Congress.gov API responses, recorded September 23, 2026. None contains an API key.
 
-**Objective:** test parsing against the formats the sources actually return, not formats written from memory.
+**Objective:** test parsing against what the API actually returns, not a format written from memory.
 
-**Inputs:** Congress.gov API v3 and GovInfo package content.
+**Inputs:** `GET /v3/crsreport` and `GET /v3/crsreport/{id}`.
 
 **Files:**
 
-- `list-*.json`, `detail-*.json`: one list page and one item from each Congress.gov endpoint, named for the endpoint. None contains an API key.
-- `BILLSTATUS-118sconres1.xml`: a bill status record.
-- `BILLS-118sconres1is.xml`: the bill's text.
-- `PLAW-118publ1.xml`: a public law in USLM XML.
-- `CDOC-119tdoc2.htm`: a Senate Treaty Document's HTML rendition.
-- `CREC-2024-01-02-mods.xml`: MODS metadata for one Congressional Record issue.
+- `list-crsreport.json`: a two-item listing page.
+- `detail-crsreport-IN12740.json`: a post with PDF and HTML renditions and no topics.
+- `detail-crsreport-RL34480.json`: a report with only an HTML rendition, one topic, and its author listed twice.

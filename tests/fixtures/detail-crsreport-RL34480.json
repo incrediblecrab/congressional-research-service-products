@@ -1,0 +1,374 @@
+{
+ "CRSReport": {
+  "authors": [
+   {
+    "author": "Valerie Heitshusen"
+   },
+   {
+    "author": "Valerie Heitshusen"
+   }
+  ],
+  "contentType": "Reports",
+  "currentVersion": 11,
+  "formats": [
+   {
+    "format": "HTML",
+    "url": "https://www.congress.gov/crs_external_products/RL/HTML/RL34480.html"
+   }
+  ],
+  "id": "RL34480",
+  "publishDate": "2026-09-23T04:00:00Z",
+  "relatedMaterials": [
+   {
+    "URL": "https://api.congress.gov/v3/law/109/pub/171",
+    "congress": 109,
+    "number": "109-171",
+    "title": null,
+    "type": "PUB"
+   },
+   {
+    "URL": "https://api.congress.gov/v3/law/108/pub/458",
+    "congress": 108,
+    "number": "108-458",
+    "title": null,
+    "type": "PUB"
+   },
+   {
+    "URL": "https://api.congress.gov/v3/law/115/pub/53",
+    "congress": 115,
+    "number": "115-53",
+    "title": null,
+    "type": "PUB"
+   },
+   {
+    "URL": "https://api.congress.gov/v3/law/115/pub/244",
+    "congress": 115,
+    "number": "115-244",
+    "title": null,
+    "type": "PUB"
+   },
+   {
+    "URL": "https://api.congress.gov/v3/law/114/pub/53",
+    "congress": 114,
+    "number": "114-53",
+    "title": null,
+    "type": "PUB"
+   },
+   {
+    "URL": "https://api.congress.gov/v3/law/114/pub/47",
+    "congress": 114,
+    "number": "114-47",
+    "title": null,
+    "type": "PUB"
+   },
+   {
+    "URL": "https://api.congress.gov/v3/law/114/pub/90",
+    "congress": 114,
+    "number": "114-90",
+    "title": null,
+    "type": "PUB"
+   },
+   {
+    "URL": "https://api.congress.gov/v3/law/114/pub/179",
+    "congress": 114,
+    "number": "114-179",
+    "title": null,
+    "type": "PUB"
+   },
+   {
+    "URL": "https://api.congress.gov/v3/law/114/pub/181",
+    "congress": 114,
+    "number": "114-181",
+    "title": null,
+    "type": "PUB"
+   },
+   {
+    "URL": "https://api.congress.gov/v3/law/114/pub/183",
+    "congress": 114,
+    "number": "114-183",
+    "title": null,
+    "type": "PUB"
+   },
+   {
+    "URL": "https://api.congress.gov/v3/law/114/pub/178",
+    "congress": 114,
+    "number": "114-178",
+    "title": null,
+    "type": "PUB"
+   },
+   {
+    "URL": "https://api.congress.gov/v3/law/109/pub/74",
+    "congress": 109,
+    "number": "109-74",
+    "title": null,
+    "type": "PUB"
+   },
+   {
+    "URL": "https://api.congress.gov/v3/law/113/pub/74",
+    "congress": 113,
+    "number": "113-74",
+    "title": null,
+    "type": "PUB"
+   },
+   {
+    "URL": "https://api.congress.gov/v3/law/113/pub/122",
+    "congress": 113,
+    "number": "113-122",
+    "title": null,
+    "type": "PUB"
+   },
+   {
+    "URL": "https://api.congress.gov/v3/law/114/pub/139",
+    "congress": 114,
+    "number": "114-139",
+    "title": null,
+    "type": "PUB"
+   },
+   {
+    "URL": "https://api.congress.gov/v3/law/109/pub/80",
+    "congress": 109,
+    "number": "109-80",
+    "title": null,
+    "type": "PUB"
+   },
+   {
+    "URL": "https://api.congress.gov/v3/bill/109/S/1932",
+    "congress": 109,
+    "number": 1932,
+    "title": "Deficit Reduction Act of 2005",
+    "type": "S"
+   },
+   {
+    "URL": "https://api.congress.gov/v3/bill/109/HCONRES/502",
+    "congress": 109,
+    "number": 502,
+    "title": "To correct the enrollment of the bill H.R. 5682.",
+    "type": "HCONRES"
+   },
+   {
+    "URL": "https://api.congress.gov/v3/bill/109/HR/5682",
+    "congress": 109,
+    "number": 5682,
+    "title": "Henry J. Hyde United States and India Nuclear Cooperation Promotion Act of 2006",
+    "type": "HR"
+   },
+   {
+    "URL": "https://api.congress.gov/v3/bill/108/S/2238",
+    "congress": 108,
+    "number": 2238,
+    "title": "Bunning-Bereuter-Blumenaur Flood Insurance Reform Act of 2004",
+    "type": "S"
+   },
+   {
+    "URL": "https://api.congress.gov/v3/bill/114/HR/5325",
+    "congress": 114,
+    "number": 5325,
+    "title": "Continuing Appropriations and Military Construction, Veterans Affairs, and Related Agencies Appropriations Act, 2017, and Zika Response and Preparedness Act",
+    "type": "HR"
+   },
+   {
+    "URL": "https://api.congress.gov/v3/bill/114/S/1356",
+    "congress": 114,
+    "number": 1356,
+    "title": "National Defense Authorization Act for Fiscal Year 2016",
+    "type": "S"
+   },
+   {
+    "URL": "https://api.congress.gov/v3/bill/114/S/2943",
+    "congress": 114,
+    "number": 2943,
+    "title": "National Defense Authorization Act for Fiscal Year 2017",
+    "type": "S"
+   },
+   {
+    "URL": "https://api.congress.gov/v3/bill/114/S/1635",
+    "congress": 114,
+    "number": 1635,
+    "title": "Department of State Authorities Act, Fiscal Year 2017",
+    "type": "S"
+   },
+   {
+    "URL": "https://api.congress.gov/v3/bill/114/S/612",
+    "congress": 114,
+    "number": 612,
+    "title": "WIIN Act",
+    "type": "S"
+   },
+   {
+    "URL": "https://api.congress.gov/v3/bill/109/HR/2863",
+    "congress": 109,
+    "number": 2863,
+    "title": "Department of Defense, Emergency Supplemental Appropriations to Address Hurricanes in the Gulf of Mexico, and Pandemic Influenza Act, 2006",
+    "type": "HR"
+   },
+   {
+    "URL": "https://api.congress.gov/v3/bill/113/HRES/458",
+    "congress": 113,
+    "number": 458,
+    "title": "Providing for consideration of the Senate amendments to the bill (H.R. 3547) to extend the application of certain space launch liability provisions through 2014; providing for proceedings during the period from January 17, 2014, through January 24, 2014; and for other purposes.",
+    "type": "HRES"
+   },
+   {
+    "URL": "https://api.congress.gov/v3/bill/113/HRES/776",
+    "congress": 113,
+    "number": 776,
+    "title": "Providing for consideration of the Senate amendment to the bill (H.R. 83) to require the Secretary of the Interior to assemble a team of technical, policy, and financial experts to address the energy needs of the insular areas of the United States and the Freely Associated States through the development of energy action plans aimed at promoting access to affordable, reliable energy, including increasing use of indigenous clean-energy resources, and for other purposes; waiving a requirement of clause 6(a) of rule XIII with respect to consideration of certain resolutions reported from the Committee on Rules; and for other purposes.",
+    "type": "HRES"
+   },
+   {
+    "URL": "https://api.congress.gov/v3/bill/114/HRES/797",
+    "congress": 114,
+    "number": 797,
+    "title": "Providing for consideration of the conference report to accompany the bill (H.R. 2577) making appropriations for the Departments of Transportation, and Housing and Urban Development, and related agencies for the fiscal year ending September 30, 2016, and for other purposes; providing for proceedings during the period from June 23, 2016, through July 4, 2016; and providing for consideration of motions to suspend the rules.",
+    "type": "HRES"
+   },
+   {
+    "URL": "https://api.congress.gov/v3/bill/108/HCONRES/458",
+    "congress": 108,
+    "number": 458,
+    "title": "Directing the Secretary of the Senate to make technical corrections in the enrollment of the bill S. 2238.",
+    "type": "HCONRES"
+   },
+   {
+    "URL": "https://api.congress.gov/v3/bill/115/HCONRES/53",
+    "congress": 115,
+    "number": 53,
+    "title": "Providing for a correction in the enrollment of H.R. 244.",
+    "type": "HCONRES"
+   },
+   {
+    "URL": "https://api.congress.gov/v3/bill/115/HR/244",
+    "congress": 115,
+    "number": 244,
+    "title": "To encourage effective, voluntary private sector investments to recruit, employ, and retain men and women who have served in the United States military with annual presidential awards to private sector employers recognizing such efforts, and for other purposes.",
+    "type": "HR"
+   },
+   {
+    "URL": "https://api.congress.gov/v3/bill/114/SCONRES/53",
+    "congress": 114,
+    "number": 53,
+    "title": "A concurrent resolution directing the Clerk of the House of Representatives to make a correction in the enrollment of H.R. 5325.",
+    "type": "SCONRES"
+   },
+   {
+    "URL": "https://api.congress.gov/v3/bill/114/HCONRES/47",
+    "congress": 114,
+    "number": 47,
+    "title": "To correct the enrollment of S. 178.",
+    "type": "HCONRES"
+   },
+   {
+    "URL": "https://api.congress.gov/v3/bill/114/HCONRES/90",
+    "congress": 114,
+    "number": 90,
+    "title": "Directing the Secretary of the Senate to make a technical correction in the enrollment of S. 1356.",
+    "type": "HCONRES"
+   },
+   {
+    "URL": "https://api.congress.gov/v3/bill/114/HCONRES/179",
+    "congress": 114,
+    "number": 179,
+    "title": "Directing the Secretary of the Senate to make certain corrections in the enrollment of S. 2943.",
+    "type": "HCONRES"
+   },
+   {
+    "URL": "https://api.congress.gov/v3/bill/114/HCONRES/181",
+    "congress": 114,
+    "number": 181,
+    "title": "Directing the Secretary of the Senate to make a certain correction in the enrollment of S. 1635.",
+    "type": "HCONRES"
+   },
+   {
+    "URL": "https://api.congress.gov/v3/bill/114/HCONRES/183",
+    "congress": 114,
+    "number": 183,
+    "title": "Directing the Secretary of the Senate to make a correction in the enrollment of the bill S. 612.",
+    "type": "HCONRES"
+   },
+   {
+    "URL": "https://api.congress.gov/v3/bill/114/S/178",
+    "congress": 114,
+    "number": 178,
+    "title": "Justice for Victims of Trafficking Act of 2015",
+    "type": "S"
+   },
+   {
+    "URL": "https://api.congress.gov/v3/bill/109/SCONRES/74",
+    "congress": 109,
+    "number": 74,
+    "title": "A concurrent resolution correcting the enrollment of H.R. 2863.",
+    "type": "SCONRES"
+   },
+   {
+    "URL": "https://api.congress.gov/v3/bill/113/HCONRES/74",
+    "congress": 113,
+    "number": 74,
+    "title": "Providing for a correction in the enrollment of H.R. 3547.",
+    "type": "HCONRES"
+   },
+   {
+    "URL": "https://api.congress.gov/v3/bill/113/HCONRES/122",
+    "congress": 113,
+    "number": 122,
+    "title": "Providing for a correction in the enrollment of H.R. 83.",
+    "type": "HCONRES"
+   },
+   {
+    "URL": "https://api.congress.gov/v3/bill/114/HCONRES/139",
+    "congress": 114,
+    "number": 139,
+    "title": "Providing for a correction in the enrollment of H.R. 2577.",
+    "type": "HCONRES"
+   },
+   {
+    "URL": "https://api.congress.gov/v3/bill/109/SCONRES/80",
+    "congress": 109,
+    "number": 80,
+    "title": "A concurrent resolution relating to the enrollment of S. 1932.",
+    "type": "SCONRES"
+   },
+   {
+    "URL": "https://api.congress.gov/v3/bill/119/HCONRES/66",
+    "congress": 119,
+    "number": 66,
+    "title": "Directing the Secretary of the Senate to make a correction in the enrollment of the bill S. 1071.",
+    "type": "HCONRES"
+   },
+   {
+    "URL": "https://api.congress.gov/v3/bill/119/S/1071",
+    "congress": 119,
+    "number": 1071,
+    "title": "A bill to require the Secretary of Veterans Affairs to disinter the remains of Fernando V. Cota from Fort Sam Houston National Cemetery, Texas, and for other purposes.",
+    "type": "S"
+   },
+   {
+    "URL": "https://api.congress.gov/v3/bill/118/SCONRES/44",
+    "congress": 118,
+    "number": 44,
+    "title": "A concurrent resolution directing the Clerk of the House of Representatives to make a correction in the enrollment of the bill H.R. 5009.",
+    "type": "SCONRES"
+   },
+   {
+    "URL": "https://api.congress.gov/v3/bill/118/HR/5009",
+    "congress": 118,
+    "number": 5009,
+    "title": "To reauthorize wildlife habitat and conservation programs, and for other purposes.",
+    "type": "HR"
+   }
+  ],
+  "status": "Active",
+  "summary": "An enrolled bill or resolution is the form of a measure finally agreed to by both chambers of Congress. Enrollment occurs in the chamber where the measure originated and is carried out by enrolling clerks under the supervision of the Clerk of the House of Representatives and Secretary of the Senate. Enrolled bills and joint resolutions are signed by the presiding officers of each chamber (or their designees) and are presented to the President by the House Clerk or Secretary of the Senate, depending on the chamber of origination.\nIn instances in which Congress determines that the enrolled measure does not reflect congressional intent, it can require that changes be made by adopting a concurrent resolution directing the House Clerk or Secretary of the Senate to do so. If the enrolled measure has already been presented to the President—but not yet enacted or vetoed—the concurrent resolution can request its return to allow specified corrections to be made.\nIf Congress wishes to alter an enacted measure, new legislation must be enacted to do so. In rare instances, the constitutionality of certain measures has been challenged based on allegations that the enrolled (and therefore, enacted) text did not accurately reflect congressional action. In considering these cases, the federal courts have typically relied on precedent to refuse review of the enrollment process (or other pre-enactment congressional procedures).\n",
+  "title": "Enrollment of Legislation: Relevant Congressional Procedures",
+  "topics": [
+   {
+    "topic": "Resolving Bicameral Differences & Presidential Action"
+   }
+  ],
+  "updateDate": "2026-09-23T22:09:33Z",
+  "url": "www.congress.gov/crs-report/RL34480"
+ },
+ "request": {
+  "contentType": "application/json",
+  "format": "json"
+ }
+}

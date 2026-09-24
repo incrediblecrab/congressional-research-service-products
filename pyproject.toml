@@ -3,9 +3,9 @@ requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "im-just-a-bill"
-version = "0.1.0"
-description = "Builds and updates the im-just-a-bill Hugging Face dataset of Congress.gov and GovInfo documents."
+name = "congressional-research-service-products"
+version = "0.2.0"
+description = "Builds and keeps current a Hugging Face dataset of every Congressional Research Service product the Congress.gov API lists."
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
@@ -22,7 +22,7 @@ dependencies = [
 test = ["pytest==9.1.1", "PyYAML==6.0.3"]
 
 [tool.setuptools]
-packages = ["ijab", "ijab.sources"]
+packages = ["crs_products"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

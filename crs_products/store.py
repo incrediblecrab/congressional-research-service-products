@@ -1,12 +1,15 @@
-"""Where partitions live: a Hugging Face dataset repo, or a local directory for tests and dry runs.
+"""Where the dataset lives: a Hugging Face dataset repo, or a local directory for tests and dry runs.
 
-Every collection owns data/{collection}/*.parquet and manifests/{collection}.json, so parallel lanes never touch the same file. A partition is committed together with its manifest, so the two cannot disagree on the Hub.
+The repo holds data/{partition}.parquet, manifest.json (what every partition holds, and where the last listing stood) and README.md (the dataset card, rendered from the manifest). The manifest and the card are staged together and committed with the partitions they describe, so the three cannot disagree on the Hub.
+
+Every Hub commit names its parent (parent_commit). If anything else committed since this store last read or wrote the repo, the Hub refuses the commit and the store raises Superseded instead of overwriting the other writer's work.
 """
 
 import hashlib
 import json
 import logging
 import os
+import re
 import shutil
 import tempfile
 import time
@@ -14,19 +17,21 @@ from pathlib import Path
 
 import pyarrow as pa
 import pyarrow.parquet as pq
+from huggingface_hub import CommitOperationAdd, HfApi, HfFileSystem, hf_hub_download
+from huggingface_hub.errors import EntryNotFoundError, HfHubHTTPError, RemoteEntryNotFoundError
 
 SCHEMA = pa.schema([
     ("id", pa.string()),
-    ("collection", pa.string()),
-    ("congress", pa.int32()),
-    ("type", pa.string()),
-    ("number", pa.string()),
-    ("version", pa.string()),
-    ("chamber", pa.string()),
+    ("content_type", pa.string()),
+    ("status", pa.string()),
+    ("version", pa.int32()),
     ("title", pa.string()),
-    ("date", pa.string()),
+    ("authors", pa.list_(pa.string())),
+    ("topics", pa.list_(pa.string())),
+    ("publish_date", pa.string()),
     ("updated_at", pa.string()),
     ("url", pa.string()),
+    ("summary", pa.large_string()),
     ("text", pa.large_string()),
     ("text_source", pa.string()),
     ("text_url", pa.string()),
@@ -35,29 +40,40 @@ SCHEMA = pa.schema([
     ("fetched_at", pa.string()),
 ])
 COLUMNS = SCHEMA.names
-ROW_GROUP_ROWS = 20_000
+MANIFEST = "manifest.json"
+CARD = "README.md"
 ROW_GROUP_BYTES = 64 << 20
 COMMIT_ATTEMPTS = 4
+RETRYABLE = (408, 429, 500, 502, 503, 504)
+# Measured September 23, 2026 on a scratch dataset: a commit whose parent_commit is no longer the branch head answers 412 Precondition Failed.
+CONFLICT = 412
 # The Hub's docs say the repo experience degrades after a few thousand commits; history is squashed past this many.
 SQUASH_AFTER_COMMITS = 1000
-log = logging.getLogger("ijab")
+log = logging.getLogger("crs_products")
 
 
-def partition_path(collection, key):
-    return f"data/{collection}/{key}.parquet"
+class Superseded(RuntimeError):
+    """Another writer committed to the repo since this store last saw it."""
 
 
-def manifest_path(collection):
-    return f"manifests/{collection}.json"
+def partition_of(uid):
+    """The series letters plus the thousands of the number (R49 holds R49000 to R49999); ids numbered by year, like 98-684, go to "numeric"."""
+    match = re.fullmatch(r"([A-Z]+)(\d+)", uid or "")
+    if match:
+        return f"{match.group(1)}{int(match.group(2)) // 1000}"
+    return "numeric" if (uid or "")[:1].isdigit() else "other"
+
+
+def partition_path(key):
+    return f"data/{key}.parquet"
 
 
 def normalize(row):
     out = {name: row.get(name) for name in COLUMNS}
-    if out["congress"] is not None:
-        out["congress"] = int(out["congress"])
-    for name in ("number", "version"):
-        if out[name] is not None:
-            out[name] = str(out[name])
+    if out["version"] is not None:
+        out["version"] = int(out["version"])
+    for name in ("authors", "topics"):
+        out[name] = list(out[name] or [])
     if isinstance(out["metadata"], (dict, list)):
         out["metadata"] = json.dumps(out["metadata"], ensure_ascii=False, sort_keys=True)
     return out
@@ -73,8 +89,8 @@ def write_parquet(rows, path):
         batch, size = [], 0
         for row in rows:
             batch.append(row)
-            size += len(row["text"] or "") + len(row["metadata"] or "")
-            if len(batch) >= ROW_GROUP_ROWS or size >= ROW_GROUP_BYTES:
+            size += len(row["text"] or "") + len(row["summary"] or "") + len(row["metadata"] or "")
+            if size >= ROW_GROUP_BYTES:
                 writer.write_table(pa.Table.from_pylist(batch, schema=SCHEMA))
                 batch, size = [], 0
         if batch or not rows:
@@ -96,6 +112,10 @@ def sha256_file(path):
     return digest.hexdigest()
 
 
+def git_blob_sha1(data):
+    return hashlib.sha1(b"blob %d\0" % len(data) + data).hexdigest()
+
+
 def dir_bytes(path):
     total = 0
     for root, _, files in os.walk(path):
@@ -108,42 +128,39 @@ def dir_bytes(path):
 
 
 class _Staging:
-    """Scratch space for one run. Tracks the largest footprint it ever reached, which is the local-disk bound."""
+    """Scratch space for one run. Tracks the largest footprint it ever reached, which is the local-disk bound. card, if given, renders README.md from each staged manifest."""
 
-    def __init__(self, workdir=None):
-        self.dir = Path(tempfile.mkdtemp(prefix="ijab-", dir=workdir))
+    def __init__(self, workdir=None, card=None):
+        self.dir = Path(tempfile.mkdtemp(prefix="crs-products-", dir=workdir))
+        self.card = card
         self.staged = {}
         self.peak_bytes = 0
 
     def measure(self):
         self.peak_bytes = max(self.peak_bytes, dir_bytes(self.dir))
 
-    def scratch(self, name):
-        path = self.dir / "scratch" / name
-        path.parent.mkdir(parents=True, exist_ok=True)
-        return path
+    def _stage(self, repo_path, text):
+        local = self.dir / "stage" / repo_path
+        local.parent.mkdir(parents=True, exist_ok=True)
+        local.write_text(text)
+        self.staged[repo_path] = local
+        return local
 
-    def stage_partition(self, collection, key, rows):
-        repo_path = partition_path(collection, key)
+    def stage_partition(self, key, rows):
+        repo_path = partition_path(key)
         local = self.dir / "stage" / repo_path
         stats = write_parquet(rows, local)
         self.staged[repo_path] = local
         self.measure()
         return dict(stats, file=repo_path)
 
-    def stage_manifest(self, collection, manifest):
-        repo_path = manifest_path(collection)
-        local = self.dir / "stage" / repo_path
-        local.parent.mkdir(parents=True, exist_ok=True)
-        local.write_text(json.dumps(manifest, indent=1, sort_keys=True, ensure_ascii=False) + "\n")
-        self.staged[repo_path] = local
-        return repo_path
+    def stage_manifest(self, manifest):
+        self._stage(MANIFEST, json.dumps(manifest, indent=1, sort_keys=True, ensure_ascii=False) + "\n")
+        if self.card:
+            self._stage(CARD, self.card(manifest))
 
     def put_text(self, repo_path, text, message):
-        local = self.dir / "stage" / repo_path
-        local.parent.mkdir(parents=True, exist_ok=True)
-        local.write_text(text)
-        self.staged[repo_path] = local
+        self._stage(repo_path, text)
         return self.commit(message)
 
     def clear(self):
@@ -156,17 +173,17 @@ class _Staging:
 
 
 class LocalStore(_Staging):
-    def __init__(self, root, workdir=None):
-        super().__init__(workdir)
+    def __init__(self, root, workdir=None, card=None):
+        super().__init__(workdir, card)
         self.root = Path(root)
         self.commits = []
 
-    def read_manifest(self, collection):
-        path = self.root / manifest_path(collection)
-        return json.loads(path.read_text()) if path.exists() else None
+    def read_manifest(self):
+        text = self.read_text(MANIFEST)
+        return json.loads(text) if text else None
 
-    def read_partition(self, collection, key):
-        path = self.root / partition_path(collection, key)
+    def read_partition(self, key):
+        path = self.root / partition_path(key)
         return read_parquet(path) if path.exists() else []
 
     def read_columns(self, repo_path, columns):
@@ -195,37 +212,29 @@ class LocalStore(_Staging):
 
 
 class HubStore(_Staging):
-    def __init__(self, repo_id, workdir=None, token=None):
-        from huggingface_hub import HfApi
+    """token=False reads anonymously (the dataset is public), which also keeps Trusted Publishing out of read-only commands."""
 
-        super().__init__(workdir)
+    def __init__(self, repo_id, workdir=None, token=None, card=None, api=None):
+        super().__init__(workdir, card)
         self.repo_id = repo_id
-        self.api = HfApi(token=token)
+        self.api = api or HfApi(token=token)
         self.revision = self.api.dataset_info(repo_id).sha
+        self.superseded = None
 
     def _download(self, repo_path):
-        from huggingface_hub import hf_hub_download
-        from huggingface_hub.errors import EntryNotFoundError, RemoteEntryNotFoundError
-
-        target = self.dir / "download"
         try:
-            local = hf_hub_download(self.repo_id, repo_path, repo_type="dataset", revision=self.revision, local_dir=target, token=self.api.token)
+            local = hf_hub_download(self.repo_id, repo_path, repo_type="dataset", revision=self.revision, local_dir=self.dir / "download", token=self.api.token)
         except (EntryNotFoundError, RemoteEntryNotFoundError):
             return None
         self.measure()
         return Path(local)
 
-    def read_manifest(self, collection):
-        local = self._download(manifest_path(collection))
-        if local is None:
-            return None
-        try:
-            return json.loads(local.read_text())
-        finally:
-            local.unlink(missing_ok=True)
+    def read_manifest(self):
+        text = self.read_text(MANIFEST)
+        return json.loads(text) if text else None
 
-    def read_partition(self, collection, key):
-        local = self._download(partition_path(collection, key))
+    def read_partition(self, key):
+        local = self._download(partition_path(key))
         if local is None:
             return []
         try:
@@ -235,8 +244,6 @@ class HubStore(_Staging):
 
     def read_columns(self, repo_path, columns):
         """Reads only the named columns, by HTTP range requests, so verification never downloads the text."""
-        from huggingface_hub import HfFileSystem
-
         fs = HfFileSystem(token=self.api.token)
         with fs.open(f"datasets/{self.repo_id}@{self.revision}/{repo_path}", "rb") as handle:
             return pq.read_table(handle, columns=columns).to_pydict()
@@ -264,23 +271,43 @@ class HubStore(_Staging):
             local.unlink(missing_ok=True)
 
     def commit(self, message):
-        """One atomic commit of everything staged. Retries rate limits and server errors; a retried commit that already landed only re-adds identical files, so the retry cannot corrupt the repo."""
-        from huggingface_hub import CommitOperationAdd
-        from huggingface_hub.errors import HfHubHTTPError
-
+        """One atomic commit of everything staged, on top of the last commit this store saw. Retries rate limits and server errors; a retry that finds its own manifest already at the head counts as landed."""
         if not self.staged:
             return None
+        if self.superseded:
+            raise self.superseded
         for attempt in range(COMMIT_ATTEMPTS):
             operations = [CommitOperationAdd(path_in_repo=repo_path, path_or_fileobj=str(local)) for repo_path, local in sorted(self.staged.items())]
             try:
-                info = self.api.create_commit(self.repo_id, operations=operations, commit_message=message, repo_type="dataset")
+                oid = self.api.create_commit(self.repo_id, operations=operations, commit_message=message, repo_type="dataset", parent_commit=self.revision).oid
                 break
             except HfHubHTTPError as error:
                 status = getattr(error.response, "status_code", None)
-                if attempt == COMMIT_ATTEMPTS - 1 or status not in (408, 429, 500, 502, 503, 504):
+                if status == CONFLICT:
+                    oid = self._landed()
+                    if oid:
+                        log.warning("commit %r had already landed as %s", message[:60], oid[:12])
+                        break
+                    self.superseded = Superseded(f"{self.repo_id} has a commit this run did not write (its last commit was {self.revision[:12]})")
+                    raise self.superseded from None
+                if attempt == COMMIT_ATTEMPTS - 1 or status not in RETRYABLE:
                     raise
                 log.warning("commit attempt %d failed with HTTP %s; retrying", attempt + 1, status)
                 time.sleep(60 * (attempt + 1))
-        self.revision = info.oid
+        self.revision = oid
         self.clear()
-        return info.oid
+        return oid
+
+    def _landed(self):
+        """The head commit if it already holds exactly the manifest staged here, else None."""
+        staged = self.staged.get(MANIFEST)
+        if staged is None:
+            return None
+        head = self.api.dataset_info(self.repo_id).sha
+        data = staged.read_bytes()
+        for info in self.api.get_paths_info(self.repo_id, [MANIFEST], repo_type="dataset", revision=head):
+            lfs = getattr(info, "lfs", None)
+            same = lfs.sha256 == hashlib.sha256(data).hexdigest() if lfs else getattr(info, "blob_id", None) == git_blob_sha1(data)
+            if same:
+                return head
+        return None
