@@ -12,7 +12,7 @@ Offline tests: `pip install '.[test]'`, then `python -m pytest -q`. They use no 
 - `test_pipeline.py`: the sync loop: first sync, idle runs, changes and removals, retries, the text retry, the suspect-listing guard, resumption, the writer lease, and the probe's decision.
 - `test_source.py`: rows from real API records, text renditions in order, bot challenges, listing pages.
 - `test_http.py`: the fetcher on a mock transport: challenges, quota exhaustion, missing keys, outages.
-- `test_store.py`: partition keys, Parquet round trips, and the commit fence against a fake Hub.
+- `test_store.py`: partition keys, Parquet round trips, the commit fence against a fake Hub, and no scratch left by an unreachable Hub.
 - `test_verify.py`: each planted data defect is named, and the command exits 1.
 - `test_card.py`: the card's front matter and numbers.
 - `test_cli.py`: exit codes, `$GITHUB_OUTPUT`, Trusted Publishing, and the workflow's commands, options and outputs.

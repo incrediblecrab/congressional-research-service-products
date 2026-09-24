@@ -215,10 +215,11 @@ class HubStore(_Staging):
     """token=False reads anonymously (the dataset is public), which also keeps Trusted Publishing out of read-only commands."""
 
     def __init__(self, repo_id, workdir=None, token=None, card=None, api=None):
-        super().__init__(workdir, card)
         self.repo_id = repo_id
         self.api = api or HfApi(token=token)
+        # Before the scratch directory exists, so a Hub that cannot be reached leaves nothing behind.
         self.revision = self.api.dataset_info(repo_id).sha
+        super().__init__(workdir, card)
         self.superseded = None
 
     def _download(self, repo_path):

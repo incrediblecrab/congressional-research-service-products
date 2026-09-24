@@ -53,6 +53,17 @@ def hub(tmp_path, monkeypatch):
     return HubStore("x/y", workdir=tmp_path, api=api, card=lambda manifest: f"card for {manifest}"), api
 
 
+class UnreachableApi(FakeApi):
+    def dataset_info(self, repo_id):
+        raise httpx.ConnectError("planted: the Hub cannot be reached")
+
+
+def test_a_hub_that_cannot_be_reached_leaves_no_scratch_directory(tmp_path):
+    with pytest.raises(httpx.ConnectError):
+        HubStore("x/y", workdir=tmp_path, api=UnreachableApi())
+    assert list(tmp_path.iterdir()) == []
+
+
 def test_a_commit_on_a_stale_parent_is_superseded_and_the_store_writes_nothing_more(hub):
     store, api = hub
     store.stage_manifest({"n": 1})
