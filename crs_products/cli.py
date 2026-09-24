@@ -57,7 +57,7 @@ def cmd_run(args):
     except HfHubHTTPError as error:
         if NO_PUBLISHER in str(error):
             warn(f"{NO_PUBLISHER} for {args.repo}, so nothing was written. Register the workflow under the dataset's Settings > Trusted Publishers.")
-            github_output(commits=0)
+            github_output(commits=0, more="false")
             return 0
         raise
     fetcher = Fetcher()
@@ -71,7 +71,8 @@ def cmd_run(args):
         fetcher.close()
     run.update(minutes=round((time.monotonic() - started) / 60, 1), peak_scratch_bytes=store.peak_bytes, requests=dict(sorted(fetcher.requests.items())))
     print(json.dumps(run, indent=1))
-    github_output(commits=run["commits"])
+    # more: the budget ran out while the run was still making progress, so another run should start without waiting for the schedule.
+    github_output(commits=run["commits"], more="true" if run["stopped"] == "budget" and run["fetched"] > 0 else "false")
     if run["stopped"] in CLEAN_STOPS + ("deferred", "superseded"):
         return 0
     warn(f"run stopped: {run['stopped']}")

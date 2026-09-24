@@ -1,4 +1,4 @@
-# Every 5 minutes, probe: one API request for the product count and the newest product, and one read of the manifest on the Hub. When the probe says a sync is needed, sync within the time budget; after a sync that committed, verify the Hub against the manifest and the API, and squash long history.
+# On the schedule, probe: one API request for the product count and the newest product, and one read of the manifest on the Hub. When the probe says a sync is needed, sync within the time budget; after a sync that committed, verify the Hub against the manifest and the API, and squash long history. A sync that ran out of budget while still fetching starts the next run itself.
 # Writes to Hugging Face use Trusted Publishing: with `id-token: write`, the CLI sets HF_OIDC_RESOURCE from its --repo, so no Hugging Face token is stored anywhere. The only secret is the api.data.gov key.
 name: pipeline
 
@@ -30,6 +30,8 @@ jobs:
     permissions:
       contents: read
       id-token: write
+    outputs:
+      more: ${{ steps.sync.outputs.more }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
@@ -73,6 +75,21 @@ jobs:
           for step in probe run verify; do
             if [ -s "$step.json" ]; then { echo "### $step"; echo '```json'; cat "$step.json"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"; fi
           done
+
+  # GitHub starts scheduled runs late, or drops them, when it is busy. A sync that ran out of budget while still fetching therefore starts the next run instead of waiting; that run probes first, and continues the chain only if it too runs out of budget while fetching. A job of its own, so the job that parses downloaded files never holds `actions: write`.
+  continue:
+    needs: sync
+    if: ${{ !inputs.args && needs.sync.outputs.more == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write
+    steps:
+      - name: Start the next run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh workflow run pipeline.yml --ref "$GITHUB_REF_NAME"
 
   # GitHub disables schedules in a public repository after 60 days without repository activity.
   keepalive:

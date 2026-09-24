@@ -13,10 +13,12 @@ from huggingface_hub.errors import HfHubHTTPError
 
 from crs_products import cli
 from crs_products.http import Unavailable
+from crs_products.pipeline import Context
+from conftest import ScriptedSource, scripted
 
 WORKFLOW = Path(__file__).parent.parent / ".github" / "workflows" / "pipeline.yml"
 # What each command writes to $GITHUB_OUTPUT. The probe and run tests check the commands against this, and the workflow test checks the workflow's if: expressions against it.
-OUTPUTS = {"probe": {"needed"}, "run": {"commits"}}
+OUTPUTS = {"probe": {"needed"}, "run": {"commits", "more"}}
 
 
 @pytest.fixture
@@ -60,7 +62,7 @@ def test_trusted_publishing_is_requested_only_in_actions_and_only_for_the_hub(ac
 def test_run_without_a_trusted_publisher_is_neutral(actions, monkeypatch):
     monkeypatch.setattr(cli, "open_store", raising(hub_error(400, f"400 Client Error: Bad Request for url: https://huggingface.co/oauth/token ({cli.NO_PUBLISHER} for datasets/x/y)")))
     assert cli.main(["run"]) == 0
-    assert outputs(actions) == {"commits": "0"}
+    assert outputs(actions) == {"commits": "0", "more": "false"}
 
 
 def test_run_with_any_other_hub_refusal_fails(actions, monkeypatch):
@@ -77,9 +79,29 @@ def test_run_refuses_to_start_without_pdftotext(monkeypatch, tmp_path):
 
 @pytest.mark.parametrize("stopped, code", [(None, 0), ("budget", 0), ("deferred", 0), ("superseded", 0), ("Blocked: bot challenge at www.congress.gov/x.pdf", 1), ("RuntimeError: boom", 1)])
 def test_run_exit_codes(actions, monkeypatch, tmp_path, stopped, code):
-    monkeypatch.setattr(cli, "sync", lambda ctx, source: {"stopped": stopped, "finished": stopped is None, "commits": 3})
+    monkeypatch.setattr(cli, "sync", lambda ctx, source: {"stopped": stopped, "finished": stopped is None, "commits": 3, "fetched": 1})
     assert cli.main(["run", "--local", str(tmp_path / "hub")]) == code
-    assert outputs(actions) == {"commits": "3"} and set(outputs(actions)) == OUTPUTS["run"]
+    assert outputs(actions)["commits"] == "3" and set(outputs(actions)) == OUTPUTS["run"]
+
+
+# sync() leaves fetched out of a deferred run's record.
+@pytest.mark.parametrize("stopped, fetched, more", [("budget", 4, "true"), ("budget", 0, "false"), (None, 4, "false"), ("superseded", 4, "false"), ("RuntimeError: boom", 4, "false"), ("deferred", None, "false")])
+def test_only_a_run_that_ran_out_of_budget_while_fetching_asks_for_the_next_run(actions, monkeypatch, tmp_path, stopped, fetched, more):
+    run = {"stopped": stopped, "finished": stopped is None, "commits": 1} | ({} if fetched is None else {"fetched": fetched})
+    monkeypatch.setattr(cli, "sync", lambda ctx, source: run)
+    cli.main(["run", "--local", str(tmp_path / "hub")])
+    assert outputs(actions)["more"] == more
+
+
+def test_more_follows_the_record_the_real_sync_returns(actions, monkeypatch, tmp_path):
+    state = scripted(units={f"R40{n:03d}": "2026-09-01T10:00:00Z" for n in range(5)}, stop_after=2)
+    monkeypatch.setattr(cli, "CrsSource", lambda fetcher: ScriptedSource(state))
+    monkeypatch.setattr(cli, "Context", lambda **kwargs: setattr(state, "ctx", Context(**kwargs)) or state.ctx)
+    argv = ["run", "--local", str(tmp_path / "hub"), "--workdir", str(tmp_path)]
+    assert cli.main(argv) == 0 and outputs(actions)["more"] == "true"
+    state.stop_after = None
+    actions.write_text("")
+    assert cli.main(argv) == 0 and outputs(actions)["more"] == "false" and len(state.fetched) == 5
 
 
 class FakeSource:
@@ -172,8 +194,20 @@ def test_the_workflow_calls_only_commands_options_and_outputs_the_cli_has(monkey
     smoke = next(args for args in parsed if args.command == "run" and args.local)
     assert smoke.budget_minutes == 30 and smoke.partitions and smoke.max_units
 
-    expressions = " ".join(str(step.get("if", "")) for step in jobs["sync"]["steps"])
+    expressions = " ".join([str(step.get("if", "")) for step in jobs["sync"]["steps"]] + list(jobs["sync"].get("outputs", {}).values()))
     referenced = re.findall(r"steps\.(\w+)\.outputs\.(\w+)", expressions)
     assert referenced
     for step_id, key in referenced:
         assert key in OUTPUTS[command_of[step_id]], f"steps.{step_id}.outputs.{key}: `{command_of[step_id]}` does not write {key}"
+
+    needed = [(name, key) for job in jobs.values() for name, key in re.findall(r"needs\.(\w+)\.outputs\.(\w+)", str(job.get("if", "")))]
+    assert needed
+    for name, key in needed:
+        assert key in jobs[name].get("outputs", {}), f"needs.{name}.outputs.{key}: job {name} declares no output {key}"
+    # A job that starts runs starts this workflow, never after a bounded test, and holds no permission to touch the dataset; the job that parses downloads cannot start runs.
+    starters = [job for job in jobs.values() if any("gh workflow run" in (step.get("run") or "") for step in job["steps"])]
+    assert starters
+    for job in starters:
+        assert all(f"gh workflow run {WORKFLOW.name} " in step["run"] for step in job["steps"] if "gh workflow run" in (step.get("run") or ""))
+        assert "!inputs.args" in job["if"] and job["permissions"] == {"actions": "write"}
+    assert "actions" not in jobs["sync"]["permissions"]
