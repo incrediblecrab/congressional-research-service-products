@@ -4,7 +4,7 @@ name: pipeline
 
 on:
   schedule:
-    - cron: "2-59/5 * * * *"
+    - cron: "2/5 * * * *"
     - cron: "41 3 * * *"
   workflow_dispatch:
     inputs:
