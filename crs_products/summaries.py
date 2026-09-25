@@ -18,7 +18,7 @@ import pyarrow as pa
 
 from .pipeline import CLEAN_STOPS, FATAL, MANIFEST_VERSION, MAX_REMOVED_SHARE, MIN_REMOVED_GUARD, RUNS_KEPT, STAMP, age_hours, flush, new_manifest, other_writer, utcnow
 from .store import Superseded, write_parquet
-from .text import html_text, tidy
+from .text import html_text, tidy, xml_safe
 
 log = logging.getLogger("crs_products")
 
@@ -106,7 +106,8 @@ def summary_row(item):
         "title": tidy(bill["title"]) if bill.get("title") else None,
         "origin_chamber": bill.get("originChamber"),
         "current_chamber": item.get("currentChamber"),
-        "text": html_text(html),
+        # The html column keeps the API's characters; the text drops the ones XML does not allow, such as the form feed that ends a paragraph of the 108th Congress's H.R. 4503 summary (version 81).
+        "text": html_text(xml_safe(html)) if html else None,
         "html": html,
         "summary_update_date": item.get("lastSummaryUpdateDate"),
     }

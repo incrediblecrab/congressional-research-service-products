@@ -96,6 +96,16 @@ def test_a_row_carries_the_summary_and_its_bill():
     assert partition_of("93-s-1-00") == "093-s" and partition_of("119-hr-8893-07") == "119-hr" and partition_of("R40001") == "other"
 
 
+def test_a_summary_holding_characters_xml_refuses_still_gets_its_text():
+    # The 108th Congress's H.R. 4503 summary (version 81) ends a paragraph with a form feed, which stopped the backfill on September 25, 2026.
+    html = "<p>Directs NAS to review the use of MTBE in fuel and fuel additives.\f</p> <p>(Sec. 1506) Amends the Clean Air Act.</p>"
+    row = summary_row(item(108, "hr", 4503, version="81", text=html))
+    assert row["text"] == "Directs NAS to review the use of MTBE in fuel and fuel additives.\n\n(Sec. 1506) Amends the Clean Air Act." and row["html"] == html
+    # Each becomes a space, so words either side stay apart.
+    assert summary_row(item(108, "hr", 1, text="<p>fuel\x0badditives\x00 and\x1f more\ufffe</p>"))["text"] == "fuel additives and more"
+    assert summary_row(item(108, "hr", 2, text=None))["text"] is None and summary_row(item(108, "hr", 3, text=" \f "))["text"] is None
+
+
 def test_collect_reads_every_summary_where_offset_paging_skips_some():
     items = bulk(100, "hr", 700, "2015-10-01T15:15:02Z") + bulk(100, "hr", 300, "2015-10-01T15:14:59Z", start=701) + [item(100, "hr", n, updated=f"2016-01-01T00:00:{n % 60:02d}Z") for n in range(1001, 1201)]
     api = FakeAPI(items)

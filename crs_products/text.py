@@ -10,6 +10,8 @@ from lxml import html as lxml_html
 SOFT_HYPHEN = "\u00ad"
 _HTML_BLOCKS = {"p", "div", "br", "li", "tr", "table", "h1", "h2", "h3", "h4", "h5", "h6", "ul", "ol", "blockquote", "pre", "section", "article", "header", "footer", "dt", "dd", "caption", "figcaption"}
 _HTML_TAG = re.compile(r"</?(p|br|div|li|ul|ol|b|i|em|strong|a|span|table|h[1-6])\b", re.I)
+# What XML 1.0 does not allow: C0 controls other than tab, line feed and carriage return; surrogates; U+FFFE and U+FFFF. lxml refuses to set a text node that holds one.
+_NOT_XML = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\ud800-\udfff\ufffe\uffff]")
 
 
 def decode(raw):
@@ -24,6 +26,11 @@ def tidy(text):
     text = re.sub(r"[ \t]+\n", "\n", text)
     text = re.sub(r"\n{3,}", "\n\n", text)
     return text.strip("\n").rstrip()
+
+
+def xml_safe(text):
+    """text with each character XML does not allow replaced by a space, so html_text can read it."""
+    return _NOT_XML.sub(" ", text)
 
 
 def html_text(source):
