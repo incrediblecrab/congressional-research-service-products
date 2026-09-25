@@ -49,8 +49,8 @@ class FakeFetcher:
 
 
 def scripted(**overrides):
-    """State for ScriptedSource. units: {id: updateDate} the API lists. fail: ids whose fetch fails. fatal: {id: exception} raised as is. exists: ids the API still serves though the listing lacks them. texts: {id: text or None}. stop_after: use up the budget after that many fetches."""
-    return SimpleNamespace(**{"units": {}, "fail": set(), "fatal": {}, "exists": set(), "texts": {}, "stop_after": None, "count": None,
+    """State for ScriptedSource. units: {id: updateDate} the API lists. fail: ids whose fetch fails. fatal: {id: exception} raised as is. exists: ids the API still serves though the listing lacks them. texts: {id: text or None}. titles, topics: {id: value} for a product whose record should not change with its updateDate (by default the title names it). stop_after: use up the budget after that many fetches."""
+    return SimpleNamespace(**{"units": {}, "fail": set(), "fatal": {}, "exists": set(), "texts": {}, "titles": {}, "topics": {}, "stop_after": None, "count": None,
                               "fetched": [], "exists_asked": [], "ctx": None, **overrides})
 
 
@@ -80,7 +80,10 @@ class ScriptedSource:
         if unit.id in self.state.fail:
             raise RuntimeError(f"planted failure for {unit.id}")
         text = self.state.texts.get(unit.id, f"text of {unit.id}")
-        return {"id": unit.id, "title": f"{unit.id} as of {unit.updated_at}", "status": "Active", "version": 1, "authors": ["A. Author"], "topics": [],
+        title, topics = self.state.titles.get(unit.id, f"{unit.id} as of {unit.updated_at}"), list(self.state.topics.get(unit.id, []))
+        # The detail record carries the updateDate, as the API's does.
+        metadata = json.dumps({"id": unit.id, "title": title, "topics": [{"topic": topic} for topic in topics], "updateDate": unit.updated_at}, sort_keys=True)
+        return {"id": unit.id, "title": title, "status": "Active", "version": 1, "authors": ["A. Author"], "topics": topics, "metadata": metadata,
                 "text": text, "text_source": "pdf" if text else None, "url": f"https://www.congress.gov/crs-report/{unit.id}"}
 
 

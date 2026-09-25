@@ -9,6 +9,7 @@ from crs_products.http import Blocked
 from crs_products.pipeline import MAX_ATTEMPTS, PROBE_KEY, Partition, Unit, decide, order, probe_state
 from crs_products.store import CARD, MANIFEST, LocalStore, Superseded
 from crs_products.card import render
+from crs_products.verify import verify
 from huggingface_hub import DatasetCard
 from conftest import ScriptedSource, local_store, run_once, scripted
 
@@ -156,6 +157,99 @@ def test_products_without_text_are_fetched_again_after_a_week(tmp_path, monkeypa
     assert entry["text_rows"] == 2 and entry["text_retry_at"] is None
 
 
+def parquet_uploads(commits):
+    return [path for commit in commits for path in commit["files"] if path.endswith(".parquet")]
+
+
+def test_a_restamp_that_changes_nothing_keeps_the_row_and_uploads_no_partition(tmp_path):
+    store, state = local_store(tmp_path), scripted(units={"R40001": T1, "R40002": T1}, titles={"R40001": "Unchanged"})
+    run_once(store, state)
+    before, sha = stored(store, "R40"), store.read_manifest()["partitions"]["R40"]["sha256"]
+    commits = len(store.commits)
+    state.fetched.clear()
+    state.units["R40001"] = T2
+    run = run_once(store, state)
+    assert state.fetched == ["R40001"] and run["finished"] and run["fetched"] == 1 and run["unchanged"] == 1
+    assert run["commits"] == 2 and parquet_uploads(store.commits[commits:]) == [], "the claim and the result, without the partition"
+    assert "R40: 1 fetched, 0 failed, 0 removed, 2 rows, 1 unchanged" in store.commits[-1]["message"]
+    assert stored(store, "R40") == before, "the stored row keeps its updated_at and fetched_at"
+    m = store.read_manifest()
+    entry = m["partitions"]["R40"]
+    assert entry["sha256"] == sha and entry["complete"] and entry["restamped"] == {"R40001": T2}
+    assert entry["fingerprint"] == Partition("R40", {uid: Unit(uid, when) for uid, when in state.units.items()}).fingerprint
+    assert m["listing"]["newest"] == f"R40001@{T2}" and m["runs"][-1]["unchanged"] == 1
+    assert decide_both(m, ScriptedSource(state).head(), "local") == (False, "up to date")
+    assert verify(store)["problems"] == []
+    state.fetched.clear()
+    rerun = run_once(store, state)
+    assert state.fetched == [] and rerun["commits"] == 0
+
+
+def test_a_product_found_unchanged_is_not_fetched_again_until_its_update_date_moves_on(tmp_path):
+    T3 = "2026-09-03T10:00:00Z"
+    store, state = local_store(tmp_path), scripted(units={"R40001": T1, "R40002": T1, "R40003": T1}, titles={"R40001": "Unchanged", "R40003": "Unchanged too"})
+    run_once(store, state)
+    state.units.update({"R40001": T2, "R40003": T2})
+    run_once(store, state)
+    state.fetched.clear()
+    state.units["R40002"] = T2
+    run_once(store, state)
+    assert state.fetched == ["R40002"], "the other two were checked at T2 already, though their rows still say T1"
+    assert store.read_manifest()["partitions"]["R40"]["restamped"] == {"R40001": T2, "R40003": T2}
+    state.fetched.clear()
+    state.units["R40001"] = T3
+    state.titles["R40001"] = "Changed at last"
+    del state.units["R40003"]
+    run_once(store, state)
+    assert state.fetched == ["R40001"] and state.exists_asked == ["R40003"]
+    rows = stored(store, "R40")
+    assert rows["R40001"]["updated_at"] == T3 and rows["R40001"]["title"] == "Changed at last" and "R40003" not in rows
+    assert "restamped" not in store.read_manifest()["partitions"]["R40"], "neither a rewritten row nor a removed one keeps its entry"
+    assert verify(store)["problems"] == []
+
+
+@pytest.mark.parametrize("topics, unchanged", [(["Budget", "Taxation"], 1), (["Budget", "Trade"], 0)])
+def test_topics_in_another_order_are_no_change_but_other_topics_are(tmp_path, topics, unchanged):
+    store, state = local_store(tmp_path), scripted(units={"R40001": T1}, titles={"R40001": "Unchanged"}, topics={"R40001": ["Taxation", "Budget"]})
+    run_once(store, state)
+    state.units["R40001"] = T2
+    state.topics["R40001"] = topics
+    run = run_once(store, state)
+    row = stored(store, "R40")["R40001"]
+    assert run["unchanged"] == unchanged
+    assert (row["topics"], row["updated_at"]) == ((["Taxation", "Budget"], T1) if unchanged else (topics, T2))
+
+
+def test_a_changed_product_rewrites_its_partition_and_an_unchanged_one_beside_it_keeps_its_row(tmp_path):
+    store, state = local_store(tmp_path), scripted(units={"R40001": T1, "R40002": T1}, titles={"R40001": "Unchanged", "R40002": "First title"})
+    run_once(store, state)
+    before = stored(store, "R40")
+    commits = len(store.commits)
+    state.units.update({"R40001": T2, "R40002": T2})
+    state.titles["R40002"] = "Second title"
+    run = run_once(store, state)
+    rows = stored(store, "R40")
+    assert run["fetched"] == 2 and run["unchanged"] == 1
+    assert rows["R40001"] == before["R40001"]
+    assert rows["R40002"]["title"] == "Second title" and rows["R40002"]["updated_at"] == T2
+    assert parquet_uploads(store.commits[commits:]) == ["data/R40.parquet"]
+    assert verify(store)["problems"] == []
+
+
+def test_a_product_still_without_text_is_written_again_so_its_text_retry_moves_on(tmp_path, monkeypatch):
+    store, state = local_store(tmp_path), scripted(units={"R40001": T1}, titles={"R40001": "Unchanged"}, texts={"R40001": None})
+    run_once(store, state)
+    first = stored(store, "R40")["R40001"]["fetched_at"]
+    shift_clock(monkeypatch, pipeline.TEXT_RETRY_HOURS + 1)
+    state.fetched.clear()
+    run = run_once(store, state)
+    assert state.fetched == ["R40001"] and run["unchanged"] == 0
+    assert stored(store, "R40")["R40001"]["fetched_at"] > first
+    state.fetched.clear()
+    run_once(store, state)
+    assert state.fetched == [], "the next text retry waits another week"
+
+
 def test_suspect_listing_is_skipped_without_removing_anything(tmp_path):
     units = {f"R40{n:03d}": T1 for n in range(30)}
     store, state = local_store(tmp_path), scripted(units=dict(units))
@@ -194,6 +288,7 @@ def test_refetch_fetches_again(tmp_path):
     state.fetched.clear()
     run_once(store, state, refetch=True)
     assert sorted(state.fetched) == ["R40001", "R40002"]
+    assert "restamped" not in store.read_manifest()["partitions"]["R40"], "found unchanged at the stamp their rows already have"
 
 
 def stamp(minutes_ago):

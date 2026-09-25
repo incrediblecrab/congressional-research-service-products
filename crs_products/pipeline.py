@@ -1,12 +1,13 @@
 """The sync loop.
 
-The Congress.gov API lists every CRS product with its updateDate. A run lists them all, groups them into partitions (store.partition_of), and for each partition loads what the Hub holds, fetches the products that are new or whose updateDate changed, drops products the API no longer has, and stages the partition with the manifest. Staged work is committed every checkpoint_seconds and at the end, so a run that dies loses at most one interval. The Parquet files are the state: nothing else records which products were fetched.
+The Congress.gov API lists every CRS product with its updateDate. A run lists them all, groups them into partitions (store.partition_of), and for each partition loads what the Hub holds, fetches the products that are new or whose updateDate changed, drops products the API no longer has, and stages the partition with the manifest. A fetch that returns what is stored keeps the stored row (same_content), the manifest records the updateDate it was checked at (restamped), and a partition in which nothing changed is not staged again. Staged work is committed every checkpoint_seconds and at the end, so a run that dies loses at most one interval. The Parquet files are the state: apart from restamped, nothing else records which products were fetched.
 
 One writer at a time, because www.congress.gov allows 10 requests a minute in total. The manifest names the last writer and when it wrote (the lease). A run defers while another writer's lease is fresh, and commits before it works on its first partition, which claims the lease. Every commit names its parent (store.HubStore.commit), so when two writers race, the second commit is refused and that run stops (Superseded) before fetching.
 """
 
 import copy
 import hashlib
+import json
 import logging
 import os
 import re
@@ -16,7 +17,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 
 from .http import Blocked, MissingKey, QuotaExhausted
-from .store import Superseded, partition_of
+from .store import Superseded, normalize, partition_of
 
 log = logging.getLogger("crs_products")
 
@@ -250,7 +251,7 @@ def sync(ctx, source):
         finished, reason = False, f"{type(error).__name__}: {error}"[:300]
         log.exception("run failed")
     run = {"started": started, "ended": utcnow(), "writer": ctx.writer, "finished": finished, "stopped": reason}
-    run.update({key: ctx.stats[key] for key in ("fetched", "failed", "removed", "suspect_listings")})
+    run.update({key: ctx.stats[key] for key in ("fetched", "unchanged", "failed", "removed", "suspect_listings")})
     if reason == "superseded":
         return dict(run, commits=ctx.stats["commits"])
     runs = base.get("runs") or []
@@ -273,6 +274,28 @@ def sync(ctx, source):
     return dict(run, commits=ctx.stats["commits"])
 
 
+def comparable(row):
+    """A row as same_content compares it: no stamps, topics sorted, and the detail record without its updateDate and with its topics sorted."""
+    out = normalize(row)
+    del out["updated_at"], out["fetched_at"]
+    out["topics"] = sorted(out["topics"])
+    try:
+        metadata = json.loads(out["metadata"]) if out["metadata"] else None
+    except ValueError:
+        return out
+    if isinstance(metadata, dict):
+        metadata.pop("updateDate", None)
+        if isinstance(metadata.get("topics"), list):
+            metadata["topics"] = sorted(metadata["topics"], key=lambda topic: json.dumps(topic, sort_keys=True))
+    out["metadata"] = metadata
+    return out
+
+
+def same_content(stored, fetched):
+    """Whether a fetch returned what is stored, apart from the stamps and the order of topics. Congress.gov re-stamps some products every hour without changing them (measured September 25, 2026: 26 of 26 such re-fetches returned the same record and the same PDF or HTML file, 3 of them with topics reordered), and rewriting their partitions added about 100 MB to the Hub repo's history each time. A stored row without text never counts as the same, so its text retry still advances fetched_at."""
+    return bool(stored and stored.get("text")) and comparable(stored) == comparable(fetched)
+
+
 def sync_partition(ctx, source, manifest, partition):
     """Bring one partition up to date. Returns False when the budget ran out first."""
     entry = manifest["partitions"].get(partition.key) or {}
@@ -288,7 +311,9 @@ def sync_partition(ctx, source, manifest, partition):
         log.warning("%s: the listing lacks %d of %d stored products; skipped as a suspect listing", partition.key, len(missing), len(stored))
         ctx.stats["suspect_listings"] += 1
         return True
-    counts = {"fetched": 0, "failed": 0, "removed": 0}
+    counts = {"fetched": 0, "failed": 0, "removed": 0, "unchanged": 0}
+    # {id: updateDate} of products fetched at that updateDate and found unchanged; their rows keep an older updated_at.
+    restamped = dict(entry.get("restamped") or {})
     for uid in missing:
         if source.exists(uid):
             # Pages shift while the listing is read; a product the API still serves stays as stored.
@@ -303,7 +328,7 @@ def sync_partition(ctx, source, manifest, partition):
     todo = []
     for uid in sorted(partition.units):
         unit, row, failure = partition.units[uid], stored.get(uid), failures.get(uid)
-        if not ctx.refetch and row is not None and row["updated_at"] == unit.updated_at:
+        if not ctx.refetch and row is not None and (row["updated_at"] == unit.updated_at or (uid in restamped and restamped[uid] == unit.updated_at)):
             if row.get("text") or later(row["fetched_at"], TEXT_RETRY_HOURS) > now:
                 continue
         if not ctx.refetch and failure and failure.get("updated_at") == unit.updated_at and failure["attempts"] >= MAX_ATTEMPTS and later(failure["at"], RETRY_AFTER_HOURS) > now:
@@ -320,7 +345,7 @@ def sync_partition(ctx, source, manifest, partition):
         try:
             row = source.fetch(unit)
         except FATAL:
-            _write(ctx, manifest, partition, stored, todo, done, counts, final=False)
+            _write(ctx, manifest, partition, stored, restamped, todo, done, counts, final=False)
             raise
         except Exception as error:  # noqa: BLE001 - recorded per product, retried on later runs
             previous = failures.get(unit.id) or {}
@@ -329,25 +354,36 @@ def sync_partition(ctx, source, manifest, partition):
             counts["failed"] += 1
             log.info("%s failed (attempt %d): %s", unit.id, attempts, error)
         else:
-            stored[unit.id] = dict(row, updated_at=unit.updated_at, fetched_at=utcnow())
+            if same_content(stored.get(unit.id), row):
+                restamped[unit.id] = unit.updated_at
+                counts["unchanged"] += 1
+            else:
+                stored[unit.id] = dict(row, updated_at=unit.updated_at, fetched_at=utcnow())
             failures.pop(unit.id, None)
             counts["fetched"] += 1
         done.add(unit.id)
         if time.monotonic() - ctx.last_commit >= ctx.checkpoint_seconds:
-            _write(ctx, manifest, partition, stored, todo, done, counts, final=False)
-    _write(ctx, manifest, partition, stored, todo, done, counts, final=finished)
+            _write(ctx, manifest, partition, stored, restamped, todo, done, counts, final=False)
+    _write(ctx, manifest, partition, stored, restamped, todo, done, counts, final=finished)
     return finished
 
 
-def _write(ctx, manifest, partition, stored, todo, done, counts, final):
+def _write(ctx, manifest, partition, stored, restamped, todo, done, counts, final):
     failures = manifest["failures"]
     still_open = [unit for unit in todo if unit.id not in done or (unit.id in failures and failures[unit.id]["attempts"] < MAX_ATTEMPTS)]
     complete = final and not still_open
     rows = list(stored.values())
-    stats = ctx.store.stage_partition(partition.key, rows)
-    textless = sorted(row["fetched_at"] for row in rows if not row.get("text"))
     entry = manifest["partitions"].setdefault(partition.key, {})
-    entry.update(stats)
+    # Otherwise the file on the Hub, or the one an earlier call staged, already holds these rows.
+    if counts["fetched"] > counts["unchanged"] or counts["removed"] or not entry.get("sha256"):
+        entry.update(ctx.store.stage_partition(partition.key, rows))
+    # Only a stamp the listing still shows, other than the row's own, saves a fetch.
+    checked = {uid: stamp for uid, stamp in sorted(restamped.items()) if uid in stored and stamp == partition.units[uid].updated_at and stamp != stored[uid]["updated_at"]}
+    if checked:
+        entry["restamped"] = checked
+    else:
+        entry.pop("restamped", None)
+    textless = sorted(row["fetched_at"] for row in rows if not row.get("text"))
     entry.update({
         "listed": len(partition.units),
         "failed": sum(1 for uid, f in failures.items() if f.get("partition") == partition.key and f["attempts"] >= MAX_ATTEMPTS and uid not in stored),
@@ -357,7 +393,7 @@ def _write(ctx, manifest, partition, stored, todo, done, counts, final):
         "updated_at": utcnow(),
     })
     manifest["updated_at"] = entry["updated_at"]
-    ctx.pending.append(f"{partition.key}: {counts['fetched']} fetched, {counts['failed']} failed, {counts['removed']} removed, {entry['rows']} rows" + ("" if complete else " (partial)"))
+    ctx.pending.append(f"{partition.key}: {counts['fetched']} fetched, {counts['failed']} failed, {counts['removed']} removed, {entry['rows']} rows" + ("" if complete else " (partial)") + (f", {counts['unchanged']} unchanged" if counts["unchanged"] else ""))
     log.info(ctx.pending[-1])
     for key, value in counts.items():
         ctx.stats[key] += value

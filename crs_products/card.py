@@ -17,9 +17,9 @@ COLUMN_DOCS = {
     "version": "The API's currentVersion; only the current version is kept",
     "title": "Title",
     "authors": "Distinct author names, in the API's order",
-    "topics": "CRS topic names; often empty",
+    "topics": "CRS topic names, in no fixed order (the API's order varies between requests); often empty",
     "publish_date": "Publication date (YYYY-MM-DD)",
-    "updated_at": "The listing's updateDate for the product; a changed value is what triggers a re-fetch",
+    "updated_at": "The listing's updateDate when this row was written. A changed value triggers a re-fetch; one that finds the product unchanged keeps the row and records the new value in `manifest.json` instead, so this can be older than the listing's",
     "url": "The product's page on congress.gov",
     "summary": "The API's summary, as plain text",
     "text": "Full text of the current version: the PDF's text layer, else the HTML rendition's text; null when neither gave text",
@@ -27,7 +27,7 @@ COLUMN_DOCS = {
     "text_url": "The URL the text was extracted from; for a record that lists only HTML, possibly the PDF at the path the HTML implies",
     "text_sha256": "SHA-256 of the bytes fetched from text_url",
     "metadata": "The API's detail record as JSON: formats, related bills and laws, authors as listed",
-    "fetched_at": "When this row was fetched (UTC)",
+    "fetched_at": "When the fetch that wrote this row ran (UTC); a later fetch that found the product unchanged is not recorded",
 }
 
 
@@ -125,6 +125,8 @@ def render(manifest):
         "## How it stays current",
         "",
         "A GitHub Actions job is scheduled every 5 minutes to ask the API for its product count and its most recently updated product: one request. When either changed, or once a day regardless, the job lists every product and fetches the ones that are new or whose `updateDate` changed, removes the ones the API no longer has, and commits the changed partitions with this card. A job that runs out of time while still fetching starts the next one itself.",
+        "",
+        "A product whose `updateDate` changed while its record and text did not keeps its row, its partition is not rewritten, and `manifest.json` records the new `updateDate`, so the product is not fetched again until its `updateDate` next changes. Congress.gov re-stamps some products about every hour without changing them: on September 25, 2026, 26 of 26 such re-fetches of 13 products returned the same record and the same PDF or HTML file, 3 of them with topics in another order, and each rewrite of their 10 partitions added about 100 MB to this repository's history.",
         "",
         f"The check reads who wrote last and which partitions are incomplete from `{PROBE_KEY}` in this card's metadata rather than downloading `manifest.json`. The Hub counts file downloads, so checks stay out of the download count; syncs, which download files, are in it.",
         "",
