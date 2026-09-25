@@ -91,7 +91,7 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: gh workflow run pipeline.yml --ref "$GITHUB_REF_NAME"
 
-  # GitHub disables schedules in a public repository after 60 days without repository activity. This job makes no commit to prevent that: GitHub Trust & Safety disabled a keepalive project on April 21, 2025 for "circumventing the 60 day inactivity policy" (https://github.com/ddev/github-action-add-on-test/issues/46). Instead it fails once the last commit is 50 days old, so GitHub notifies the owner, who can push one. It runs on every scheduled run, because GitHub drops most of them and did not start the first daily one, on September 25, 2026. The log names the schedule that started the run.
+  # GitHub disables schedules in a public repository after 60 days without repository activity. This job makes no commit to prevent that: GitHub Trust & Safety disabled a keepalive project on April 21, 2025 for "circumventing the 60 day inactivity policy" (https://github.com/ddev/github-action-add-on-test/issues/46). Instead it fails once the last commit is 50 days old, so GitHub notifies the owner, who can push one. It runs on every scheduled run, because GitHub drops most of them and started the first daily one 5 hours 24 minutes late, on September 25, 2026. The log names the schedule that started the run.
   inactivity:
     if: github.event_name == 'schedule'
     runs-on: ubuntu-latest
