@@ -1,12 +1,17 @@
 """The Congress.gov API's CRS products: the listing, each product's detail, and its text.
 
 Text comes from the PDF the API links to, else from the HTML rendition. PDF comes first because www.congress.gov puts CRS HTML behind a Cloudflare bot challenge some of the time (measured September 23, 2026: the HTML answered 403 with cf-mitigated: challenge while the PDF answered 200; a later request for the same HTML answered 200).
+
+A record that lists only HTML gets its PDF tried first at the path the HTML implies (measured September 25, 2026: R43797's record listed only HTML, which answered the challenge, while R/PDF/R43797/R43797.8.pdf answered 200 with text).
 """
 
 import hashlib
 import json
 import logging
+import re
 from urllib.parse import quote
+
+import httpx
 
 from .http import Blocked
 from .text import html_text, pdf_text, summary_text, tidy
@@ -24,6 +29,15 @@ def mark(item):
 
 def distinct(values):
     return list(dict.fromkeys(value for value in values if value))
+
+
+def pdf_beside(html_url, version):
+    """The PDF path an HTML rendition implies: .../R/HTML/R43797.html at version 8 gives .../R/PDF/R43797/R43797.8.pdf. The directory comes from the HTML, not the id (RL31801 is under RA, numeric ids under RS or RL)."""
+    match = re.fullmatch(r"(.+/)HTML/([^/]+)\.html", html_url or "")
+    if not match or not str(version or "").isdigit():
+        return None
+    directory, uid = match.groups()
+    return f"{directory}PDF/{uid}/{uid}.{version}.pdf"
 
 
 def product_row(report):
@@ -96,6 +110,14 @@ class CrsSource:
                 formats.setdefault((entry.get("format") or "").upper(), entry["url"])
         if formats.get("PDF"):
             found = self._get(formats["PDF"], "pdf")
+            if found:
+                return found
+        elif guessed := pdf_beside(formats.get("HTML"), report.get("currentVersion")):
+            try:
+                found = self._get(guessed, "pdf")
+            except httpx.HTTPStatusError:
+                # A guessed URL: a refusal means no PDF there, not a failed product.
+                found = None
             if found:
                 return found
         if formats.get("HTML") and not self.html_blocked:

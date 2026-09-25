@@ -8,7 +8,7 @@ import pytest
 from crs_products import source as source_module
 from crs_products.http import Blocked, Unavailable
 from crs_products.pipeline import Unit
-from crs_products.source import API, CrsSource, mark, product_row
+from crs_products.source import API, CrsSource, mark, pdf_beside, product_row
 from crs_products.text import pdf_text, tidy
 from conftest import FakeFetcher, fixture_json
 
@@ -99,6 +99,50 @@ def test_a_challenged_pdf_stops_the_run():
     source, _ = source_with({PDF: Blocked("bot challenge")})
     with pytest.raises(Blocked):
         source.fetch(Unit("IN12740", "x"))
+
+
+RL_GUESS = "https://www.congress.gov/crs_external_products/RL/PDF/RL34480/RL34480.11.pdf"
+
+
+def test_pdf_beside_takes_the_directory_from_the_html_rendition():
+    # Both checked live on September 25, 2026: the first answered 200 with text though R43797's record listed only HTML; the second is the PDF 95-1135's record lists.
+    assert pdf_beside("https://www.congress.gov/crs_external_products/R/HTML/R43797.html", 8) == "https://www.congress.gov/crs_external_products/R/PDF/R43797/R43797.8.pdf"
+    assert pdf_beside("https://www.congress.gov/crs_external_products/RL/HTML/95-1135.html", "13") == "https://www.congress.gov/crs_external_products/RL/PDF/95-1135/95-1135.13.pdf"
+    assert pdf_beside(RL_HTML, RL34480["CRSReport"]["currentVersion"]) == RL_GUESS
+    for url, version in ((None, 8), (RL_HTML, None), (RL_HTML, "8a"), ("https://www.congress.gov/crs-report/R43797", 8)):
+        assert pdf_beside(url, version) is None
+
+
+@needs_pdftotext
+def test_a_record_listing_only_html_gets_the_pdf_beside_it_first():
+    source, fetcher = source_with({RL_GUESS: tiny_pdf("Enrollment text"), RL_HTML: b"<p>html text</p>"})
+    row = source.fetch(Unit("RL34480", "x"))
+    assert row["text"] == "Enrollment text" and row["text_source"] == "pdf" and row["text_url"] == RL_GUESS
+    assert RL_HTML not in fetcher.requests
+
+
+@needs_pdftotext
+@pytest.mark.parametrize("guess", [404, 403, b"%PDF-1.4 no text layer", b"<html>not a pdf</html>"])
+def test_a_refused_or_textless_guess_falls_back_to_the_html(guess):
+    source, _ = source_with({RL_GUESS: guess, RL_HTML: b"<p>First.</p>"})
+    row = source.fetch(Unit("RL34480", "x"))
+    assert row["text"] == "First." and row["text_source"] == "html" and row["text_url"] == RL_HTML
+
+
+def test_a_challenged_guess_stops_the_run_like_a_listed_pdf():
+    source, _ = source_with({RL_GUESS: Blocked("bot challenge"), RL_HTML: b"<p>First.</p>"})
+    with pytest.raises(Blocked):
+        source.fetch(Unit("RL34480", "x"))
+
+
+def test_no_guess_when_a_pdf_is_listed_or_the_version_is_unknown():
+    source, fetcher = source_with({PDF: 404, HTML: b"<p>First.</p>"})
+    source.fetch(Unit("IN12740", "x"))
+    assert [url for url in fetcher.requests if "www." in url] == [PDF, HTML]
+    record = {"CRSReport": dict(RL34480["CRSReport"], id="R40003", currentVersion=None)}
+    source, fetcher = source_with({RL_HTML: b"<p>First.</p>"}, details={f"{API}/crsreport/R40003": record})
+    source.fetch(Unit("R40003", "x"))
+    assert [url for url in fetcher.requests if "www." in url] == [RL_HTML]
 
 
 def test_a_server_error_fails_the_product():
