@@ -1,9 +1,10 @@
-"""The CLI's contract with the workflow: exit codes, $GITHUB_OUTPUT keys, Trusted Publishing, and a workflow that calls only commands, options and outputs the CLI has."""
+"""The CLI's contract with the workflow: exit codes, $GITHUB_OUTPUT keys, Trusted Publishing, and a workflow that calls only commands, options and outputs the CLI has. Also the workflow's keepalive job."""
 
 import json
 import os
 import re
 import subprocess
+import time
 from pathlib import Path
 
 import httpx
@@ -194,9 +195,7 @@ def shell_argv(line, env):
 def test_the_workflow_calls_only_commands_options_and_outputs_the_cli_has(monkeypatch):
     workflow = yaml.safe_load(WORKFLOW.read_text())
     triggers = workflow.get("on", workflow.get(True))  # PyYAML reads the key `on` as True
-    crons = [entry["cron"] for entry in triggers["schedule"]]
     jobs = workflow["jobs"]
-    assert jobs["keepalive"]["if"] == f"github.event.schedule == '{crons[1]}'"
 
     example = re.search(r"e\.g\. (.+?) \(", triggers["workflow_dispatch"]["inputs"]["args"]["description"]).group(1)
     parsed = []
@@ -235,3 +234,39 @@ def test_the_workflow_calls_only_commands_options_and_outputs_the_cli_has(monkey
         assert all(f"gh workflow run {WORKFLOW.name} " in step["run"] for step in job["steps"] if "gh workflow run" in (step.get("run") or ""))
         assert "!inputs.args" in job["if"] and job["permissions"] == {"actions": "write"}
     assert "actions" not in jobs["sync"]["permissions"]
+
+
+@pytest.mark.parametrize("idle_days, pushed", [(44, False), (46, True)])
+def test_keepalive_runs_on_every_schedule_and_commits_after_45_idle_days(tmp_path, idle_days, pushed):
+    """The keepalive step run the way GitHub runs a step (bash -e), in a checkout made the way actions/checkout makes one, against a local origin."""
+    job = yaml.safe_load(WORKFLOW.read_text())["jobs"]["keepalive"]
+    assert job["if"] == "github.event_name == 'schedule'"
+    (step,) = [step for step in job["steps"] if "run" in step]
+    env = {"PATH": os.environ["PATH"], "HOME": str(tmp_path), "GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.devnull}
+
+    def git(*args, cwd, **extra):
+        return subprocess.run(["git", *args], cwd=cwd, env={**env, **extra}, capture_output=True, text=True, check=True).stdout
+
+    origin, seed, work = tmp_path / "origin.git", tmp_path / "seed", tmp_path / "work"
+    for path in (origin, seed, work):
+        path.mkdir()
+    git("init", "-q", "--bare", "-b", "main", cwd=origin)
+    git("init", "-q", "-b", "main", cwd=seed)
+    stamp = f"@{int(time.time()) - idle_days * 86400} +0000"
+    who = {"GIT_AUTHOR_NAME": "a", "GIT_AUTHOR_EMAIL": "a@example.com", "GIT_COMMITTER_NAME": "a", "GIT_COMMITTER_EMAIL": "a@example.com"}
+    for title in ("first change", "last change"):
+        git("commit", "-q", "--allow-empty", "-m", title, cwd=seed, GIT_AUTHOR_DATE=stamp, GIT_COMMITTER_DATE=stamp, **who)
+    git("push", "-q", origin.as_uri(), "main", cwd=seed)
+    # actions/checkout on a scheduled run: a shallow fetch, then a local main that tracks origin's.
+    git("init", "-q", cwd=work)
+    git("remote", "add", "origin", origin.as_uri(), cwd=work)
+    git("fetch", "-q", "--depth=1", "origin", "+refs/heads/main:refs/remotes/origin/main", cwd=work)
+    git("checkout", "-q", "--force", "-B", "main", "refs/remotes/origin/main", cwd=work)
+    assert git("rev-parse", "--is-shallow-repository", cwd=work).strip() == "true"
+
+    done = subprocess.run(["bash", "-e", "-c", step["run"]], cwd=work, env={**env, "SCHEDULE": "2/5 * * * *"}, capture_output=True, text=True)
+    assert done.returncode == 0, done.stderr
+    assert "schedule: 2/5 * * * *" in done.stdout
+    titles = git("log", "--format=%s", "main", cwd=origin).splitlines()
+    assert titles == (["Keep the schedule enabled: no commit in 45 days"] if pushed else []) + ["last change", "first change"]
+    assert pushed or f"last commit {idle_days} days ago" in done.stdout
