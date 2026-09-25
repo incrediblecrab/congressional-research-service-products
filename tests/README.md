@@ -15,4 +15,4 @@ Offline tests: `pip install '.[test]'`, then `python -m pytest -q`. They use no 
 - `test_store.py`: partition keys, Parquet round trips, the commit fence against a fake Hub, and no scratch left by an unreachable Hub.
 - `test_verify.py`: each planted data defect is named, and the command exits 1.
 - `test_card.py`: the card's front matter and numbers.
-- `test_cli.py`: exit codes, `$GITHUB_OUTPUT`, Trusted Publishing, the workflow's commands, options, outputs and keepalive.
+- `test_cli.py`: exit codes, `$GITHUB_OUTPUT`, Trusted Publishing, the workflow's commands, options, outputs and inactivity job.

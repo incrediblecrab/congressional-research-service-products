@@ -1,4 +1,4 @@
-"""The CLI's contract with the workflow: exit codes, $GITHUB_OUTPUT keys, Trusted Publishing, and a workflow that calls only commands, options and outputs the CLI has. Also the workflow's keepalive job."""
+"""The CLI's contract with the workflow: exit codes, $GITHUB_OUTPUT keys, Trusted Publishing, and a workflow that calls only commands, options and outputs the CLI has. Also the workflow's inactivity job."""
 
 import json
 import os
@@ -236,10 +236,15 @@ def test_the_workflow_calls_only_commands_options_and_outputs_the_cli_has(monkey
     assert "actions" not in jobs["sync"]["permissions"]
 
 
-@pytest.mark.parametrize("idle_days, pushed", [(44, False), (46, True)])
-def test_keepalive_runs_on_every_schedule_and_commits_after_45_idle_days(tmp_path, idle_days, pushed):
-    """The keepalive step run the way GitHub runs a step (bash -e), in a checkout made the way actions/checkout makes one, against a local origin."""
-    job = yaml.safe_load(WORKFLOW.read_text())["jobs"]["keepalive"]
+@pytest.mark.parametrize("idle_days, fails", [(49, False), (50, True)])
+def test_inactivity_runs_on_every_schedule_and_fails_from_50_idle_days_without_committing(tmp_path, idle_days, fails):
+    """The step run the way GitHub runs a step (bash -e), in a checkout made the way actions/checkout makes one, against a local origin. No job may commit: GitHub Trust & Safety called commits that keep a schedule enabled a violation of its Terms."""
+    workflow = yaml.safe_load(WORKFLOW.read_text())
+    assert workflow["permissions"] == {}
+    for name, other in workflow["jobs"].items():
+        assert other.get("permissions", {}).get("contents") != "write", f"job {name} can push"
+        assert not any(re.search(r"\bgit\s+(commit|push)\b", step.get("run") or "") for step in other["steps"]), f"job {name} commits"
+    job = workflow["jobs"]["inactivity"]
     assert job["if"] == "github.event_name == 'schedule'"
     (step,) = [step for step in job["steps"] if "run" in step]
     env = {"PATH": os.environ["PATH"], "HOME": str(tmp_path), "GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.devnull}
@@ -265,8 +270,10 @@ def test_keepalive_runs_on_every_schedule_and_commits_after_45_idle_days(tmp_pat
     assert git("rev-parse", "--is-shallow-repository", cwd=work).strip() == "true"
 
     done = subprocess.run(["bash", "-e", "-c", step["run"]], cwd=work, env={**env, "SCHEDULE": "2/5 * * * *"}, capture_output=True, text=True)
-    assert done.returncode == 0, done.stderr
+    assert done.returncode == (1 if fails else 0), done.stdout + done.stderr
     assert "schedule: 2/5 * * * *" in done.stdout
-    titles = git("log", "--format=%s", "main", cwd=origin).splitlines()
-    assert titles == (["Keep the schedule enabled: no commit in 45 days"] if pushed else []) + ["last change", "first change"]
-    assert pushed or f"last commit {idle_days} days ago" in done.stdout
+    assert f"last commit {idle_days} days ago" in done.stdout
+    errors = [line for line in done.stdout.splitlines() if line.startswith("::error::")]
+    assert bool(errors) == fails
+    assert all(f"No commit in {idle_days} days" in line and "60 days" in line for line in errors)
+    assert git("log", "--format=%s", "main", cwd=origin).splitlines() == ["last change", "first change"]
