@@ -63,13 +63,13 @@ class CrsSource:
         # Set by the first challenged HTML request; the rest of the run skips HTML instead of asking again every 6 seconds.
         self.html_blocked = None
 
-    def page(self, offset, limit=None):
-        data = self.fetcher.json(f"{API}/crsreport", params={"format": "json", "limit": limit or PAGE, "offset": offset}) or {}
+    def page(self, offset):
+        data = self.fetcher.json(f"{API}/crsreport", params={"format": "json", "limit": PAGE, "offset": offset}) or {}
         return int((data.get("pagination") or {}).get("count") or 0), data.get("CRSReports") or []
 
     def head(self):
-        """One request: how many products the API lists, and the newest."""
-        count, items = self.page(0, limit=1)
+        """One request, the same one list_all() sends first: how many products the API lists, and the newest. Requests that differ only in limit have answered from different snapshots (tests/test_source.py has the measurement), so a probe asking with another limit can see a newer or older first item than the listing publishes."""
+        count, items = self.page(0)
         return {"count": count, "newest": mark(items[0] if items else None)}
 
     def list_all(self):

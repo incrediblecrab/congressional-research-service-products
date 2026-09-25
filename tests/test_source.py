@@ -1,4 +1,4 @@
-"""The CRS adapter on real API samples: rows, text renditions in order, challenges, listing pages."""
+"""The CRS adapter on real API samples: rows, text renditions in order, challenges, listing pages, the probe's request."""
 
 import json
 import shutil
@@ -178,3 +178,20 @@ def test_list_all_pages_by_count_and_dedups_shifted_pages(monkeypatch):
     assert head == {"count": 5, "newest": mark(items[0])} and head["newest"] == "R40000@2026-09-09T00:00:00Z"
     assert sorted(found) == ["R40000", "R40001", "R40002", "R40003", "R40004"]
     assert source.head() == head
+
+
+def test_the_probe_sends_exactly_the_listing_first_request():
+    """Measured September 25, 2026: at 08:35Z limit=1 answered IN12689@2026-09-25T04:24:41Z while limit=250 answered IN12689@2026-09-25T04:09:54Z, and at 08:20Z the other way round (03:25:27Z against 04:09:54Z). A probe asking for one item saw a change that no listing published, so the local loop relisted every product every 51 seconds."""
+    stale = [{"id": "IN12689", "updateDate": "2026-09-25T04:09:54Z"}, {"id": "R48859", "updateDate": "2026-09-25T04:09:51Z"}]
+    fresh = [{"id": "IN12689", "updateDate": "2026-09-25T04:24:41Z"}, stale[1]]
+    asked = []
+
+    def listing(params):
+        asked.append(dict(params))
+        snapshot = stale if params["limit"] == source_module.PAGE else fresh
+        return {"CRSReports": snapshot[params["offset"]:][: params["limit"]], "pagination": {"count": 2}}
+
+    source = CrsSource(FakeFetcher(json_map={f"{API}/crsreport": listing}))
+    head, _ = source.list_all()
+    assert source.head() == head == {"count": 2, "newest": "IN12689@2026-09-25T04:09:54Z"}
+    assert asked[-1] == asked[0]
