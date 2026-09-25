@@ -60,7 +60,7 @@ def product_row(report):
 class CrsSource:
     def __init__(self, fetcher):
         self.fetcher = fetcher
-        # Set by the first challenged HTML request; the rest of the run skips HTML instead of asking again every 6 seconds.
+        # Set by the first challenged HTML request; the rest of the run skips HTML instead of asking again for each product that falls back to it.
         self.html_blocked = None
 
     def page(self, offset):

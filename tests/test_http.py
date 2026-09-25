@@ -1,4 +1,4 @@
-"""The real Fetcher against a mock transport: bot challenges, quota exhaustion, missing keys, server errors."""
+"""The real Fetcher: its pacing on a fake clock, and against a mock transport, bot challenges, quota exhaustion, missing keys and server errors."""
 
 import httpx
 import pytest
@@ -19,6 +19,21 @@ def fetcher_with(handler, api_key="test-key", max_retries=5):
     fetcher.client.close()
     fetcher.client = httpx.Client(transport=httpx.MockTransport(handler), follow_redirects=True)
     return fetcher
+
+
+@pytest.mark.parametrize("host", ["www.congress.gov", "congress.gov"])
+def test_eleven_requests_to_a_library_of_congress_host_span_more_than_a_minute(monkeypatch, host):
+    # Requests leave a little after their slots, so ten intervals must leave a margin over 60 seconds, not merely reach it.
+    clock = [1000.0]
+    monkeypatch.setattr(http_module.time, "monotonic", lambda: clock[0])
+    monkeypatch.setattr(http_module.time, "sleep", lambda seconds: clock.__setitem__(0, clock[0] + seconds))
+    fetcher = Fetcher(api_key="test-key")
+    sends = []
+    for _ in range(11):
+        fetcher._pace(host)
+        sends.append(clock[0])
+    fetcher.client.close()
+    assert sends[-1] - sends[0] >= 60.5
 
 
 def test_bot_challenge_raises_blocked_without_killing_the_host():
