@@ -23,7 +23,7 @@ def fixture_json(name):
 
 
 class FakeFetcher:
-    """json() answers from a URL map: a dict, None (a 404), an exception to raise, or a callable of the params. get() answers bytes as 200, an int as that status, or raises an exception."""
+    """json() answers from a URL map: a dict, None (a 404), an exception to raise, or a callable of the params. get() answers bytes as 200, an int as that status, a (status, bytes) pair as both, or raises an exception."""
 
     def __init__(self, json_map=None, get_map=None):
         self.json_map = json_map or {}
@@ -45,6 +45,8 @@ class FakeFetcher:
         request = httpx.Request("GET", url)
         if isinstance(value, int):
             return httpx.Response(value, request=request)
+        if isinstance(value, tuple):
+            return httpx.Response(value[0], content=value[1], request=request)
         return httpx.Response(200, content=value, request=request)
 
 

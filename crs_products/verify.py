@@ -16,8 +16,8 @@ def tolerance(listed):
     return max(TOLERANCE_MIN, math.ceil(TOLERANCE_SHARE * (listed or 0)))
 
 
-def verify(store, source=None):
-    """Returns a report; report["problems"] is empty when every check passed."""
+def verify(store, source=None, partition_of=partition_of, tally="text_source", live=None):
+    """Returns a report; report["problems"] is empty when every check passed. partition_of, tally (the column whose values are counted, reported as report[tally + "s"]) and live (how --live compares the Hub with the source; None: live_diff) default to the products'."""
     manifest = store.read_manifest()
     if not manifest:
         return {"problems": ["no manifest.json"]}
@@ -26,7 +26,7 @@ def verify(store, source=None):
     files = set(store.list_files("data/"))
     expected = {key: entry.get("file") or partition_path(key) for key, entry in entries.items()}
     sha256s = store.file_sha256s(sorted(path for path in expected.values() if path in files))
-    stored, text_sources = {}, Counter()
+    stored, tallies = {}, Counter()
     for key, path in sorted(expected.items()):
         entry = entries[key]
         if path not in files:
@@ -34,7 +34,7 @@ def verify(store, source=None):
             continue
         if sha256s.get(path) != entry.get("sha256"):
             problems.append(f"{key}: {path} has sha256 {str(sha256s.get(path))[:12]}, the manifest says {str(entry.get('sha256'))[:12]}")
-        columns = store.read_columns(path, ["id", "text_source"])
+        columns = store.read_columns(path, ["id", tally])
         ids = columns["id"]
         if len(ids) != entry.get("rows"):
             problems.append(f"{key}: {len(ids)} rows, the manifest says {entry.get('rows')}")
@@ -49,7 +49,7 @@ def verify(store, source=None):
         if entry.get("complete") and (entry.get("rows") or 0) + (entry.get("failed") or 0) != entry.get("listed"):
             problems.append(f"{key}: complete, but {entry.get('rows')} rows + {entry.get('failed')} failed != {entry.get('listed')} listed")
         stored[key] = {uid for uid in ids if uid is not None}
-        text_sources.update(source_name or "none" for source_name in columns["text_source"])
+        tallies.update(value or "none" for value in columns[tally])
     for path in sorted(files - set(expected.values())):
         problems.append(f"{path} is not in the manifest")
     rows = sum(len(ids) for ids in stored.values())
@@ -60,15 +60,15 @@ def verify(store, source=None):
         "partitions": len(entries),
         "complete": sum(1 for entry in entries.values() if entry.get("complete")),
         "failed": sum(1 for f in (manifest.get("failures") or {}).values() if f["attempts"] >= MAX_ATTEMPTS),
-        "text_sources": dict(sorted(text_sources.items())),
+        f"{tally}s": dict(sorted(tallies.items())),
     }
     if source is not None:
-        report["live"] = live_diff(manifest, stored, source, problems)
+        report["live"] = (live or live_diff)(manifest, stored, source, problems, partition_of)
     report["problems"] = problems
     return report
 
 
-def live_diff(manifest, stored, source, problems):
+def live_diff(manifest, stored, source, problems, partition_of=partition_of):
     """Exact id sets: what the API lists now against what the Hub holds. Only a complete partition that differs by more than its tolerance is a problem; an incomplete one is still being filled."""
     head, items = source.list_all()
     live = set(items)

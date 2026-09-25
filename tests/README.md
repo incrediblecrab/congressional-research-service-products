@@ -2,17 +2,19 @@
 
 Offline tests: `pip install '.[test]'`, then `python -m pytest -q`. No network or key; PDF tests are skipped without `pdftotext`.
 
-**Objective:** pin down the behavior an unattended pipeline depends on. Each load-bearing check was also tested by planting the defect it should catch, a changed line of code or data, and confirming that a test fails.
+**Objective:** pin down the behavior an unattended pipeline depends on. Each load-bearing check was also tested by planting the defect it should catch and confirming that a test fails.
 
 **Inputs:** real API responses in [`fixtures/`](fixtures/README.md), and scripted fakes.
 
 **Files:**
 
 - `conftest.py`: a scripted CRS source, and a fetcher that serves fixtures by URL.
-- `test_pipeline.py`: the sync loop: first sync, idle runs, changes, unchanged re-stamps and removals, retries, the text retry, the suspect-listing guard, resumption, the writer lease, and the probe's decision.
-- `test_source.py`: rows from real API records, text renditions in order, bot challenges, listing pages.
-- `test_http.py`: the fetcher's pacing, challenges, quota exhaustion, missing keys, outages.
-- `test_store.py`: partition keys, Parquet round trips, the commit fence against a fake Hub, and no scratch left by an unreachable Hub.
-- `test_verify.py`: each planted data defect is named, and the command exits 1.
-- `test_card.py`: the card's front matter and numbers.
-- `test_cli.py`: exit codes, `$GITHUB_OUTPUT`, Trusted Publishing, the workflow's commands, options, outputs and inactivity job.
+- `test_pipeline.py`: the sync loop: first sync, idle runs, changes, re-stamps, removals, retries, the suspect-listing guard, resumption, the writer lease, the probe's decision.
+- `test_source.py`: rows from real API records, text renditions, bot challenges, listing pages.
+- `test_summaries.py`: summaries against a fake API that reorders ties: complete reads where offset paging skips, the daily check, removals.
+- `test_constitution.py`: Constitution Annotated ids, listing, rows, a sync.
+- `test_http.py`: pacing, challenges, quota exhaustion, missing keys, outages.
+- `test_store.py`: partition keys, Parquet round trips, the commit fence, no scratch left behind.
+- `test_verify.py`: each planted data defect is named; exit 1.
+- `test_card.py`: the products card's front matter and numbers.
+- `test_cli.py`: exit codes, `$GITHUB_OUTPUT`, Trusted Publishing, dataset routing, and every workflow's commands, options, outputs and schedule.

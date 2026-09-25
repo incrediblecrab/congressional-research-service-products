@@ -1,4 +1,4 @@
-"""The CLI's contract with the workflow: exit codes, $GITHUB_OUTPUT keys, Trusted Publishing, and a workflow that calls only commands, options and outputs the CLI has. Also the workflow's inactivity job."""
+"""The CLI's contract with the workflows: exit codes, $GITHUB_OUTPUT keys, Trusted Publishing, each dataset's routing, and workflows that call only commands, options and outputs the CLI has. Also pipeline.yml's inactivity job."""
 
 import json
 import os
@@ -13,13 +13,18 @@ import pytest
 import yaml
 from huggingface_hub.errors import HfHubHTTPError
 
-from crs_products import cli
+from crs_products import cli, constitution, summaries
 from crs_products.http import Unavailable
 from crs_products.pipeline import Context
 from crs_products.store import CARD, LocalStore
+from crs_products.store import partition_of as products_partition_of
 from conftest import ScriptedSource, local_store, run_once, scripted
 
-WORKFLOW = Path(__file__).parent.parent / ".github" / "workflows" / "pipeline.yml"
+WORKFLOWS = Path(__file__).parent.parent / ".github" / "workflows"
+WORKFLOW = WORKFLOWS / "pipeline.yml"
+# Each workflow, the dataset its commands name, and the commands it runs.
+DATASETS = {"pipeline.yml": "products", "summaries.yml": "summaries", "constitution.yml": "constitution"}
+COMMANDS = {"pipeline.yml": {"run", "probe", "verify", "squash"}, "summaries.yml": {"run", "verify", "squash"}, "constitution.yml": {"run", "verify", "squash"}}
 # What each command writes to $GITHUB_OUTPUT. The probe and run tests check the commands against this, and the workflow test checks the workflow's if: expressions against it.
 OUTPUTS = {"probe": {"needed"}, "run": {"commits", "more"}}
 
@@ -74,10 +79,63 @@ def test_run_with_any_other_hub_refusal_fails(actions, monkeypatch):
         cli.main(["run"])
 
 
-def test_run_refuses_to_start_without_pdftotext(monkeypatch, tmp_path):
+@pytest.mark.parametrize("dataset", ["products", "constitution"])
+def test_run_refuses_to_start_without_pdftotext(monkeypatch, tmp_path, dataset):
     monkeypatch.setattr(cli.shutil, "which", lambda name: None)
     with pytest.raises(SystemExit, match="pdftotext is missing"):
-        cli.main(["run", "--local", str(tmp_path)])
+        cli.main(["run", "--dataset", dataset, "--local", str(tmp_path)])
+
+
+def capture(calls):
+    def runner(ctx, source):
+        calls.append((ctx, source))
+        return {"stopped": None, "finished": True, "commits": 0, "fetched": 0}
+    return runner
+
+
+def test_each_dataset_runs_its_own_source_and_partitions(actions, monkeypatch, tmp_path):
+    """Summaries have a sync of their own and need no pdftotext; the Constitution Annotated goes through the products' loop with its own partitions and comparison."""
+    calls = []
+    monkeypatch.setattr(cli.summaries, "sync", capture(calls))
+    monkeypatch.setattr(cli, "sync", capture(calls))
+    assert cli.main(["run", "--dataset", "summaries", "--local", str(tmp_path / "s")]) == 0
+    assert cli.main(["run", "--dataset", "constitution", "--local", str(tmp_path / "c")]) == 0
+    assert cli.main(["run", "--local", str(tmp_path / "p")]) == 0
+    (s_ctx, s_source), (c_ctx, c_source), (p_ctx, p_source) = calls
+    assert isinstance(s_source, summaries.SummariesSource) and s_ctx.partition_of is summaries.partition_of and s_ctx.comparable is summaries.comparable
+    assert isinstance(c_source, constitution.ConanSource) and c_ctx.partition_of is constitution.partition_of and c_ctx.comparable is constitution.comparable
+    assert isinstance(p_source, cli.CrsSource) and p_ctx.partition_of is products_partition_of
+    assert (s_ctx.source_url, c_ctx.source_url) == (summaries.SOURCE_URL, constitution.SOURCE_URL)
+    calls.clear()
+    monkeypatch.setattr(cli.shutil, "which", lambda name: None)
+    assert cli.main(["run", "--dataset", "summaries", "--local", str(tmp_path / "s")]) == 0 and len(calls) == 1
+
+
+@pytest.mark.parametrize("dataset, tally, live", [("products", "text_source", None), ("summaries", "bill_type", summaries.live_counts), ("constitution", "kind", None)])
+def test_verify_checks_each_dataset_with_its_own_partitions_and_tally(monkeypatch, tmp_path, dataset, tally, live):
+    import crs_products.verify
+
+    seen = {}
+    monkeypatch.setattr(crs_products.verify, "verify", lambda store, source=None, **kwargs: seen.update(kwargs, source=source) or {"problems": []})
+    assert cli.main(["verify", "--dataset", dataset, "--local", str(tmp_path)]) == 0
+    expected = {"products": {}, "summaries": {"partition_of": summaries.partition_of, "tally": tally, "live": live}, "constitution": {"partition_of": constitution.partition_of, "tally": tally}}[dataset]
+    assert seen == dict(expected, source=None)
+
+
+@pytest.mark.parametrize("dataset, repo", sorted(cli.REPOS.items()))
+def test_trusted_publishing_asks_for_the_dataset_s_own_repo(actions, monkeypatch, dataset, repo):
+    seen = []
+    monkeypatch.setattr(cli, "cmd_squash", lambda args: seen.append((args.repo, os.environ.get("HF_OIDC_RESOURCE"))) or 0)
+    assert cli.main(["squash", "--dataset", dataset]) == 0
+    assert seen == [(repo, f"datasets/{repo}")] and repo.startswith("incrediblecrab/congressional-research-service-")
+
+
+@pytest.mark.parametrize("argv, message", [(["probe", "--dataset", "summaries"], "only the products dataset has a probe"), (["probe", "--dataset", "constitution"], "only the products dataset has a probe"),
+                                           (["run", "--dataset", "summaries", "--max-units", "2"], "--max-units does not apply to summaries")])
+def test_options_a_dataset_does_not_have_are_refused(argv, message, capsys):
+    with pytest.raises(SystemExit) as stopped:
+        cli.main(argv)
+    assert stopped.value.code == 2 and message in capsys.readouterr().err
 
 
 @pytest.mark.parametrize("stopped, code", [(None, 0), ("budget", 0), ("deferred", 0), ("superseded", 0), ("Blocked: bot challenge at www.congress.gov/x.pdf", 1), ("RuntimeError: boom", 1)])
@@ -192,20 +250,29 @@ def shell_argv(line, env):
     return done.stdout.split("\0")[:-1]
 
 
-def test_the_workflow_calls_only_commands_options_and_outputs_the_cli_has(monkeypatch):
-    workflow = yaml.safe_load(WORKFLOW.read_text())
+def test_every_workflow_is_checked_here():
+    assert sorted(path.name for path in WORKFLOWS.iterdir() if path.suffix in (".yml", ".yaml")) == sorted(DATASETS)
+
+
+@pytest.mark.parametrize("name", sorted(DATASETS))
+def test_the_workflow_calls_only_commands_options_and_outputs_the_cli_has(monkeypatch, name):
+    path = WORKFLOWS / name
+    workflow = yaml.safe_load(path.read_text())
     triggers = workflow.get("on", workflow.get(True))  # PyYAML reads the key `on` as True
     jobs = workflow["jobs"]
+    dataset = DATASETS[name]
 
     example = re.search(r"e\.g\. (.+?) \(", triggers["workflow_dispatch"]["inputs"]["args"]["description"]).group(1)
     parsed = []
-    for name in ("run", "probe", "verify", "squash"):
-        monkeypatch.setattr(cli, f"cmd_{name}", lambda args: parsed.append(args) or 0)
+    for command in ("run", "probe", "verify", "squash"):
+        monkeypatch.setattr(cli, f"cmd_{command}", lambda args: parsed.append(args) or 0)
     command_of = {}
     for step in jobs["sync"]["steps"]:
         for line in (step.get("run") or "").splitlines():
             if "python -m crs_products" not in line:
                 continue
+            # The products' workflow predates --dataset and relies on its default; every other workflow names its dataset, so no command can fall back to the products.
+            assert dataset == "products" or f"--dataset {dataset} " in line + " ", f"{step.get('name')}: {line}"
             envs = [{}]
             if "$EXTRA_ARGS" in line or "$BUDGET" in line:
                 envs = [{}, {"BUDGET": "30", "EXTRA_ARGS": example}]
@@ -213,9 +280,11 @@ def test_the_workflow_calls_only_commands_options_and_outputs_the_cli_has(monkey
                 argv = shell_argv(line, env)
                 assert cli.main(argv) == 0, f"{step.get('name')}: {argv}"
                 command_of[step.get("id")] = argv[0]
-    assert {args.command for args in parsed} == {"run", "probe", "verify", "squash"}
+    assert {args.command for args in parsed} == COMMANDS[name]
+    assert {(args.dataset, args.repo) for args in parsed if not args.local} == {(dataset, cli.REPOS[dataset])}
     smoke = next(args for args in parsed if args.command == "run" and args.local)
-    assert smoke.budget_minutes == 30 and smoke.partitions and smoke.max_units
+    assert smoke.budget_minutes == 30 and smoke.partitions and (smoke.max_units or dataset == "summaries")
+    assert all(args.budget_minutes < jobs["sync"]["timeout-minutes"] for args in parsed if args.command == "run"), "the budget must end the run before GitHub does"
 
     expressions = " ".join([str(step.get("if", "")) for step in jobs["sync"]["steps"]] + list(jobs["sync"].get("outputs", {}).values()))
     referenced = re.findall(r"steps\.(\w+)\.outputs\.(\w+)", expressions)
@@ -223,27 +292,46 @@ def test_the_workflow_calls_only_commands_options_and_outputs_the_cli_has(monkey
     for step_id, key in referenced:
         assert key in OUTPUTS[command_of[step_id]], f"steps.{step_id}.outputs.{key}: `{command_of[step_id]}` does not write {key}"
 
-    needed = [(name, key) for job in jobs.values() for name, key in re.findall(r"needs\.(\w+)\.outputs\.(\w+)", str(job.get("if", "")))]
-    assert needed
-    for name, key in needed:
-        assert key in jobs[name].get("outputs", {}), f"needs.{name}.outputs.{key}: job {name} declares no output {key}"
+    needed = [(job_name, key) for job in jobs.values() for job_name, key in re.findall(r"needs\.(\w+)\.outputs\.(\w+)", str(job.get("if", "")))]
+    for job_name, key in needed:
+        assert key in jobs[job_name].get("outputs", {}), f"needs.{job_name}.outputs.{key}: job {job_name} declares no output {key}"
     # A job that starts runs starts this workflow, never after a bounded test, and holds no permission to touch the dataset; the job that parses downloads cannot start runs.
     starters = [job for job in jobs.values() if any("gh workflow run" in (step.get("run") or "") for step in job["steps"])]
-    assert starters
+    assert bool(starters) == bool(needed) == (name != "constitution.yml")
     for job in starters:
-        assert all(f"gh workflow run {WORKFLOW.name} " in step["run"] for step in job["steps"] if "gh workflow run" in (step.get("run") or ""))
+        assert all(f"gh workflow run {name} " in step["run"] for step in job["steps"] if "gh workflow run" in (step.get("run") or ""))
         assert "!inputs.args" in job["if"] and job["permissions"] == {"actions": "write"}
     assert "actions" not in jobs["sync"]["permissions"]
+    # No job may commit: GitHub Trust & Safety called commits that keep a schedule enabled a violation of its Terms.
+    assert workflow["permissions"] == {} and workflow["concurrency"]["group"] == path.stem
+    for job_name, job in jobs.items():
+        assert job.get("permissions", {}).get("contents") != "write", f"job {job_name} can push"
+        assert not any(re.search(r"\bgit\s+(commit|push)\b", step.get("run") or "") for step in job["steps"]), f"job {job_name} commits"
+
+
+def crons(name):
+    workflow = yaml.safe_load((WORKFLOWS / name).read_text())
+    return [entry["cron"] for entry in workflow.get("on", workflow.get(True))["schedule"]]
+
+
+def test_the_new_schedules_are_what_the_code_and_cards_say():
+    (summaries_cron,) = crons("summaries.yml")
+    minute, hour, *rest = summaries_cron.split()
+    assert minute.isdigit() and hour == f"*/{summaries.SCHEDULE_HOURS}" and rest == ["*", "*", "*"]
+    # The daily check keeps to one slot: the run a day later is due, the one before it is not.
+    assert 24 - summaries.SCHEDULE_HOURS < summaries.RECONCILE_HOURS < 24
+    (constitution_cron,) = crons("constitution.yml")
+    minute, hour, day, month, weekday = constitution_cron.split()
+    assert minute.isdigit() and hour.isdigit() and (day, month) == ("*", "*") and weekday.isdigit(), "once a week, as the card says"
+    from crs_products.constitution_card import render
+
+    assert "runs once a week" in render({}) and f"every {summaries.SCHEDULE_HOURS} hours" in cli.card_of("summaries")({})
 
 
 @pytest.mark.parametrize("idle_days, fails", [(49, False), (50, True)])
 def test_inactivity_runs_on_every_schedule_and_fails_from_50_idle_days_without_committing(tmp_path, idle_days, fails):
-    """The step run the way GitHub runs a step (bash -e), in a checkout made the way actions/checkout makes one, against a local origin. No job may commit: GitHub Trust & Safety called commits that keep a schedule enabled a violation of its Terms."""
+    """The step run the way GitHub runs a step (bash -e), in a checkout made the way actions/checkout makes one, against a local origin. That no job commits is checked for every workflow above."""
     workflow = yaml.safe_load(WORKFLOW.read_text())
-    assert workflow["permissions"] == {}
-    for name, other in workflow["jobs"].items():
-        assert other.get("permissions", {}).get("contents") != "write", f"job {name} can push"
-        assert not any(re.search(r"\bgit\s+(commit|push)\b", step.get("run") or "") for step in other["steps"]), f"job {name} commits"
     job = workflow["jobs"]["inactivity"]
     assert job["if"] == "github.event_name == 'schedule'"
     (step,) = [step for step in job["steps"] if "run" in step]

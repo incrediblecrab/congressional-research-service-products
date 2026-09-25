@@ -1,0 +1,64 @@
+# Once a week, list the Constitution Annotated on GovInfo (about 26 requests), fetch the units that are new or whose package's lastModified changed, and commit. GovInfo last changed any of these packages on August 18, 2025 (checked September 25, 2026), and every run downloads manifest.json, which the Hub counts as a download, so the check is weekly rather than daily. After a run that committed, verify the Hub against the manifest and GovInfo, and squash long history.
+# Writes to Hugging Face use Trusted Publishing: with `id-token: write`, the CLI sets HF_OIDC_RESOURCE from the dataset's repo, so no Hugging Face token is stored anywhere. The only secret is the api.data.gov key, which GovInfo counts separately from api.congress.gov.
+name: constitution
+
+on:
+  schedule:
+    - cron: "29 6 * * 1"
+  workflow_dispatch:
+    inputs:
+      budget_minutes:
+        description: "Minutes the run may take (empty: 120)"
+        default: ""
+      args:
+        description: "Extra run arguments for a bounded test, e.g. --local /tmp/smoke --partitions GPO-CONAN-2020-SUPP --max-units 1 (skips verify and squash)"
+        default: ""
+
+permissions: {}
+
+concurrency:
+  group: constitution
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    # Fetching all 495 units again, as after GovInfo restamps every package, took 20.6 minutes from a laptop on September 25, 2026; the 120-minute budget leaves room for a slower GovInfo, and the timeout adds setup and the final commit.
+    timeout-minutes: 150
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - run: pip install -q .
+      - name: Sync
+        id: sync
+        env:
+          DATA_GOV_API_KEY: ${{ secrets.DATA_GOV_API_KEY }}
+          BUDGET: ${{ inputs.budget_minutes }}
+          EXTRA_ARGS: ${{ inputs.args }}
+        run: |
+          sudo apt-get update -q && sudo apt-get install -y -q poppler-utils
+          set -o pipefail
+          python -m crs_products run --dataset constitution --budget-minutes "${BUDGET:-120}" $EXTRA_ARGS | tee run.json
+      - name: Verify against the manifest and GovInfo
+        if: ${{ !inputs.args && steps.sync.outputs.commits > 0 }}
+        env:
+          DATA_GOV_API_KEY: ${{ secrets.DATA_GOV_API_KEY }}
+        run: |
+          set -o pipefail
+          python -m crs_products verify --dataset constitution --live | tee verify.json
+      - name: Squash long history
+        if: ${{ !inputs.args && steps.sync.outputs.commits > 0 }}
+        run: python -m crs_products squash --dataset constitution
+      - name: Summary
+        if: ${{ !cancelled() }}
+        run: |
+          for step in run verify; do
+            if [ -s "$step.json" ]; then { echo "### $step"; echo '```json'; cat "$step.json"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"; fi
+          done

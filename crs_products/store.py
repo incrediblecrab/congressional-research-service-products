@@ -79,22 +79,27 @@ def normalize(row):
     return out
 
 
-def write_parquet(rows, path):
-    """Rows sorted by id, zstd, content-defined chunking so an updated partition re-uploads only changed chunks."""
-    rows = sorted((normalize(row) for row in rows), key=lambda row: row["id"])
+def row_weight(row):
+    """What a product row adds to its row group's size."""
+    return len(row["text"] or "") + len(row["summary"] or "") + len(row["metadata"] or "")
+
+
+def write_parquet(rows, path, schema=SCHEMA, prepare=normalize, weight=row_weight):
+    """Rows sorted by id, zstd, content-defined chunking so an updated partition re-uploads only changed chunks. schema, prepare and weight default to the products'; another dataset passes its own (every schema has id and text)."""
+    rows = sorted((prepare(row) for row in rows), key=lambda row: row["id"])
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    writer = pq.ParquetWriter(path, SCHEMA, compression="zstd", compression_level=9, use_content_defined_chunking=True)
+    writer = pq.ParquetWriter(path, schema, compression="zstd", compression_level=9, use_content_defined_chunking=True)
     try:
         batch, size = [], 0
         for row in rows:
             batch.append(row)
-            size += len(row["text"] or "") + len(row["summary"] or "") + len(row["metadata"] or "")
+            size += weight(row)
             if size >= ROW_GROUP_BYTES:
-                writer.write_table(pa.Table.from_pylist(batch, schema=SCHEMA))
+                writer.write_table(pa.Table.from_pylist(batch, schema=schema))
                 batch, size = [], 0
         if batch or not rows:
-            writer.write_table(pa.Table.from_pylist(batch, schema=SCHEMA))
+            writer.write_table(pa.Table.from_pylist(batch, schema=schema))
     finally:
         writer.close()
     return {"rows": len(rows), "bytes": path.stat().st_size, "sha256": sha256_file(path), "text_rows": sum(1 for row in rows if row["text"])}
@@ -128,11 +133,12 @@ def dir_bytes(path):
 
 
 class _Staging:
-    """Scratch space for one run. Tracks the largest footprint it ever reached, which is the local-disk bound. card, if given, renders README.md from each staged manifest."""
+    """Scratch space for one run. Tracks the largest footprint it ever reached, which is the local-disk bound. card, if given, renders README.md from each staged manifest; write(rows, path) writes a partition (write_parquet for the products)."""
 
-    def __init__(self, workdir=None, card=None):
+    def __init__(self, workdir=None, card=None, write=None):
         self.dir = Path(tempfile.mkdtemp(prefix="crs-products-", dir=workdir))
         self.card = card
+        self.write = write or write_parquet
         self.staged = {}
         self.peak_bytes = 0
 
@@ -149,7 +155,7 @@ class _Staging:
     def stage_partition(self, key, rows):
         repo_path = partition_path(key)
         local = self.dir / "stage" / repo_path
-        stats = write_parquet(rows, local)
+        stats = self.write(rows, local)
         self.staged[repo_path] = local
         self.measure()
         return dict(stats, file=repo_path)
@@ -173,8 +179,8 @@ class _Staging:
 
 
 class LocalStore(_Staging):
-    def __init__(self, root, workdir=None, card=None):
-        super().__init__(workdir, card)
+    def __init__(self, root, workdir=None, card=None, write=None):
+        super().__init__(workdir, card, write)
         self.root = Path(root)
         self.commits = []
 
@@ -218,14 +224,14 @@ class LocalStore(_Staging):
 class HubStore(_Staging):
     """token=False reads anonymously (the dataset is public), which also keeps Trusted Publishing out of read-only commands."""
 
-    def __init__(self, repo_id, workdir=None, token=None, card=None, api=None):
+    def __init__(self, repo_id, workdir=None, token=None, card=None, api=None, write=None):
         self.repo_id = repo_id
         self.api = api or HfApi(token=token)
         # Before the scratch directory exists, so a Hub that cannot be reached leaves nothing behind.
         info = self.api.dataset_info(repo_id)
         self.revision = info.sha
         self.card_data = info.card_data.to_dict() if info.card_data else {}
-        super().__init__(workdir, card)
+        super().__init__(workdir, card, write)
         self.superseded = None
 
     def _download(self, repo_path):

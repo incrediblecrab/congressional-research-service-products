@@ -14,7 +14,8 @@ USER_AGENT = "congressional-research-service-products/0.2 (+https://github.com/i
 # www.congress.gov is a Library of Congress site: loc.gov/legal asks for at most 10 requests/minute "regardless of the number of machines", which is why only one writer runs at a time (the lease in pipeline.py). Its interval is a little over 6 seconds because a request can leave after its slot, and a new TLS connection adds more: on a 6-second grid, two requests left 5.996 s apart on September 25, 2026, so 11 could fall within one minute.
 HOST_INTERVAL = {"api.congress.gov": 0.9, "www.congress.gov": 6.1, "congress.gov": 6.1}
 DEFAULT_INTERVAL = 1.0
-KEYED_HOSTS = {"api.congress.gov"}
+# api.govinfo.gov takes the same api.data.gov key and counts it separately (x-ratelimit-limit 36,000 an hour, measured September 25, 2026); the default interval applies.
+KEYED_HOSTS = {"api.congress.gov", "api.govinfo.gov"}
 
 
 class MissingKey(RuntimeError):

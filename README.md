@@ -1,17 +1,21 @@
 # congressional-research-service-products
 
-This repository builds and updates [congressional-research-service-products](https://huggingface.co/datasets/incrediblecrab/congressional-research-service-products), a public Hugging Face dataset of every Congressional Research Service (CRS) product the Congress.gov API lists: reports, posts, resources, testimony and infographics, active and archived, with full text. The API listed 14,141 on September 23, 2026; the dataset card shows how many are stored.
+This repository builds and updates three public Hugging Face datasets of Congressional Research Service (CRS) work. Each dataset card shows how much it holds.
 
-**Objective:** hold every CRS product and add new and updated ones automatically, with no person, personal device or local copy of the corpus. [`pipeline.yml`](.github/workflows/pipeline.yml) is scheduled to probe the API every 5 minutes on GitHub Actions, which starts it [far less often](https://huggingface.co/datasets/incrediblecrab/congressional-research-service-products#how-it-stays-current), and syncs when the listing changed. It writes through Hugging Face Trusted Publishing, so no Hugging Face token is stored. GitHub disables the schedule after 60 days without repository activity, such as a commit.
+- [congressional-research-service-products](https://huggingface.co/datasets/incrediblecrab/congressional-research-service-products): every CRS product the Congress.gov API lists, active and archived, with full text.
+- [congressional-research-service-bill-summaries](https://huggingface.co/datasets/incrediblecrab/congressional-research-service-bill-summaries): every CRS summary of a bill or resolution the API lists, from 1973 on.
+- [congressional-research-service-constitution-annotated](https://huggingface.co/datasets/incrediblecrab/congressional-research-service-constitution-annotated): the printed Constitution Annotated editions and supplements on GovInfo, with text.
 
-**Inputs:** the [Congress.gov API](https://api.congress.gov) (`/v3/crsreport`), which needs a free [api.data.gov](https://api.data.gov/signup/) key in `DATA_GOV_API_KEY`, and the PDF and HTML renditions on www.congress.gov.
+**Objective:** keep each dataset complete and current with no person, personal device or local copy. The workflows run on GitHub Actions and write through Hugging Face Trusted Publishing, so no Hugging Face token is stored. GitHub disables schedules after 60 days without repository activity, such as a commit.
+
+**Inputs:** the [Congress.gov API](https://api.congress.gov) and the [GovInfo API](https://api.govinfo.gov), both with a free [api.data.gov](https://api.data.gov/signup/) key in `DATA_GOV_API_KEY`, and product PDFs and HTML on www.congress.gov.
 
 **Files:**
 
 - [`crs_products/`](crs_products/README.md): the pipeline package
-- [`tests/`](tests/README.md): offline tests on real samples
-- [`.github/workflows/`](.github/workflows/README.md): the schedule
-- `pyproject.toml`: pinned dependencies; text extraction also needs poppler's `pdftotext`
+- [`tests/`](tests/README.md): offline tests
+- [`.github/workflows/`](.github/workflows/README.md): the schedules
+- `pyproject.toml`: pinned dependencies; PDF text also needs poppler's `pdftotext`
 - `LICENSE`: MIT, for the code
 
-**Try it:** `pip install .`, then `python -m crs_products run --local /tmp/out --partitions TE10 --max-units 3`.
+**Try it:** `pip install .`, then `python -m crs_products run --local /tmp/out --partitions TE10 --max-units 3`, or `run --dataset summaries --local /tmp/sum --partitions 119-sconres`.

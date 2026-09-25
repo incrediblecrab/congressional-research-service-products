@@ -88,7 +88,7 @@ class Partition:
 
 @dataclass
 class Context:
-    """deadline is a time.monotonic() value. only (partition keys) and max_units (products fetched per partition) bound a smoke run; a capped partition stays incomplete and resumes on the next run. refetch fetches every product of each partition the run reaches, as after a parser change."""
+    """deadline is a time.monotonic() value. only (partition keys) and max_units (products fetched per partition) bound a smoke run; a capped partition stays incomplete and resumes on the next run. refetch fetches every product of each partition the run reaches, as after a parser change. partition_of, comparable (None: this module's comparable) and source_url default to the products'; another dataset synced by this loop passes its own."""
 
     store: object
     deadline: float
@@ -97,6 +97,9 @@ class Context:
     max_units: int | None = None
     refetch: bool = False
     writer: str = field(default_factory=writer_identity)
+    partition_of: object = partition_of
+    comparable: object = None
+    source_url: str = SOURCE
     stats: dict = field(default_factory=lambda: defaultdict(int))
     pending: list = field(default_factory=list)
     last_commit: float = field(default_factory=time.monotonic)
@@ -106,8 +109,8 @@ class Context:
         return time.monotonic() > self.deadline
 
 
-def new_manifest():
-    return {"version": MANIFEST_VERSION, "source": SOURCE, "partitions": {}, "failures": {}, "listing": None, "runs": [], "writer": None, "updated_at": None}
+def new_manifest(source=SOURCE):
+    return {"version": MANIFEST_VERSION, "source": source, "partitions": {}, "failures": {}, "listing": None, "runs": [], "writer": None, "updated_at": None}
 
 
 def other_writer(manifest, writer):
@@ -174,7 +177,7 @@ def decide(state, head, writer):
     return False, "up to date"
 
 
-def group(items):
+def group(items, partition_of=partition_of):
     partitions = {}
     for uid, item in items.items():
         key = partition_of(uid)
@@ -216,7 +219,7 @@ def flush(ctx, manifest, message=None):
 def sync(ctx, source):
     """One run. source lists every product (list_all), fetches one (fetch) and confirms one still exists (exists); see source.CrsSource. Returns the run record."""
     started = utcnow()
-    base = ctx.store.read_manifest() or new_manifest()
+    base = ctx.store.read_manifest() or new_manifest(ctx.source_url)
     holder = other_writer(base, ctx.writer)
     if holder:
         log.info("deferring to %s, which wrote at %s", holder["by"], holder["at"])
@@ -228,7 +231,7 @@ def sync(ctx, source):
     finished, reason, listing = True, None, None
     try:
         head, items = source.list_all()
-        partitions = group(items)
+        partitions = group(items, ctx.partition_of)
         listing = {"count": head["count"], "newest": head["newest"], "listed": len(items), "at": started,
                    "partitions": {key: len(partitions[key].units) for key in sorted(partitions)}}
         # What this run saw, for the card; the probe reads only the published listing.
@@ -291,7 +294,7 @@ def comparable(row):
     return out
 
 
-def same_content(stored, fetched):
+def same_content(stored, fetched, comparable=comparable):
     """Whether a fetch returned what is stored, apart from the stamps and the order of topics. Congress.gov re-stamps some products every hour without changing them (measured September 25, 2026: 26 of 26 such re-fetches returned the same record and the same PDF or HTML file, 3 of them with topics reordered), and rewriting their partitions added about 100 MB to the Hub repo's history each time. A stored row without text never counts as the same, so its text retry still advances fetched_at."""
     return bool(stored and stored.get("text")) and comparable(stored) == comparable(fetched)
 
@@ -354,7 +357,7 @@ def sync_partition(ctx, source, manifest, partition):
             counts["failed"] += 1
             log.info("%s failed (attempt %d): %s", unit.id, attempts, error)
         else:
-            if same_content(stored.get(unit.id), row):
+            if same_content(stored.get(unit.id), row, ctx.comparable or comparable):
                 restamped[unit.id] = unit.updated_at
                 counts["unchanged"] += 1
             else:

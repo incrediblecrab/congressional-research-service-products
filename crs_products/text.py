@@ -59,8 +59,8 @@ def summary_text(value):
     return html_text(value) if _HTML_TAG.search(value) else tidy(value) or None
 
 
-def pdf_text(raw, timeout=180):
-    """Text layer of a PDF via poppler's pdftotext. None when the PDF has no text layer or pdftotext cannot read it; a missing pdftotext raises."""
+def pdf_text(raw, timeout=180, pages=False):
+    """Text layer of a PDF via poppler's pdftotext. None when the PDF has no text layer or pdftotext cannot read it; a missing pdftotext raises. pages=True keeps one form feed between pages, so page n is text.split("\\f")[n - 1]."""
     with tempfile.TemporaryDirectory(prefix="crs-pdf-") as tmp:
         path = Path(tmp) / "in.pdf"
         path.write_bytes(raw)
@@ -70,4 +70,9 @@ def pdf_text(raw, timeout=180):
             return None
     if done.returncode != 0:
         return None
-    return tidy(done.stdout.decode("utf-8", errors="replace").replace("\f", "\n")) or None
+    out = done.stdout.decode("utf-8", errors="replace")
+    if not pages:
+        return tidy(out.replace("\f", "\n")) or None
+    # pdftotext ends every page, the last one included, with a form feed.
+    sheets = [tidy(sheet) for sheet in out.removesuffix("\f").split("\f")]
+    return "\f".join(sheets) if any(sheets) else None
