@@ -15,7 +15,10 @@ This repository builds and updates three public Hugging Face datasets of work by
 - [`crs_products/`](crs_products/README.md): the pipeline package
 - [`tests/`](tests/README.md): offline tests
 - [`.github/workflows/`](.github/workflows/README.md): the schedules
-- `pyproject.toml`: pinned dependencies; PDF text also needs poppler's `pdftotext`
-- `LICENSE`: MIT, for the code
+- [`pyproject.toml`](pyproject.toml): pinned dependencies; PDF text also needs poppler's `pdftotext`
 
-**Try it:** `pip install .`, then `python -m crs_products run --local /tmp/out --partitions TE10 --max-units 3`, or `run --dataset summaries --local /tmp/sum --partitions 119-sconres`.
+**Try it:** `pip install .`, then `python -m crs_products run --local /tmp/out --partitions TE10 --max-units 3`, or `python -m crs_products run --dataset summaries --local /tmp/sum --partitions 119-sconres`.
+
+## License
+
+MIT. See [`LICENSE`](LICENSE).
