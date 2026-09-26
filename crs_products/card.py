@@ -8,8 +8,8 @@ from .pipeline import MAX_ATTEMPTS, PROBE_KEY, RETRY_AFTER_HOURS, TEXT_RETRY_HOU
 from .store import SCHEMA
 from .verify import TOLERANCE_MIN
 
-GITHUB = "https://github.com/incrediblecrab/congressional-research-service-products"
-REPO_ID = "incrediblecrab/congressional-research-service-products"
+GITHUB = "https://github.com/incrediblecrab/crs-service-products"
+REPO_ID = "incrediblecrab/crs-research-papers"
 COLUMN_DOCS = {
     "id": "CRS product number, for example R49359, IN12740 or 98-684",
     "content_type": "Reports, Posts, Resources, Testimony or Infographics, as the API names them",
@@ -53,7 +53,7 @@ def render(manifest):
     with_text = sum(entry.get("text_rows") or 0 for entry in entries.values())
     exhausted = sum(1 for f in failures.values() if f["attempts"] >= MAX_ATTEMPTS)
     count = seen.get("count")
-    lines = ["---", "pretty_name: Congressional Research Service Products", "license: other", "license_name: us-government-works",
+    lines = ["---", "pretty_name: US Congressional Research Service Products", "license: other", "license_name: us-government-works",
              "license_link: https://www.copyright.gov/title17/92chap1.html#105", "language:", "- en",
              "task_categories:", "- text-generation", "- summarization", "- text-classification",
              "tags:", "- legal", "- government", "- congress", "- public-policy", "- united-states", "- crs-reports",
@@ -63,9 +63,9 @@ def render(manifest):
     state = probe_state(manifest)
     if state:
         lines.append(f"{PROBE_KEY}: {json.dumps(state, sort_keys=True)}")
-    lines += ["---", "", "# Congressional Research Service Products", ""]
+    lines += ["---", "", "# US Congressional Research Service Products", ""]
     lines += [
-        "Every product of the Congressional Research Service (CRS) that the [Congress.gov API](https://api.congress.gov) lists, active and archived, with full text and metadata: Reports, Posts, Resources, Testimony and Infographics, as the API names them. CRS writes them for Members of Congress; Congress.gov publishes them.",
+        "Every product of the Congressional Research Service (CRS), the research service of the United States Congress, that the [Congress.gov API](https://api.congress.gov) lists, active and archived, with full text and metadata: Reports, Posts, Resources, Testimony and Infographics, as the API names them. CRS writes them for Members of Congress; Congress.gov publishes them.",
         "",
         f"Nothing here is edited by hand. The pipeline, its tests and its schedule are in [{GITHUB.removeprefix('https://')}]({GITHUB}), and this card is rendered from `manifest.json` in the same commit.",
         "",

@@ -24,7 +24,7 @@ log = logging.getLogger("crs_products")
 
 API = "https://api.congress.gov/v3"
 SOURCE_URL = f"{API}/summaries"
-REPO_ID = "incrediblecrab/congressional-research-service-bill-summaries"
+REPO_ID = "incrediblecrab/crs-bill-summaries"
 PAGE = 250
 # The listing starts with the 93rd Congress (1973-1974).
 FIRST_CONGRESS = 93

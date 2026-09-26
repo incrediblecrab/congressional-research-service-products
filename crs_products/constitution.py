@@ -21,7 +21,7 @@ PREFIX = "GPO-CONAN-"
 SINCE = "1990-01-01T00:00:00Z"
 PAGE = 1000
 SOURCE_URL = f"{API}/collections/{COLLECTION}"
-REPO_ID = "incrediblecrab/congressional-research-service-constitution-annotated"
+REPO_ID = "incrediblecrab/crs-constitution"
 _PACKAGE = re.compile(r"GPO-CONAN-(?:REV-)?\d{4}(?:-SUPP)?")
 _POSITION = re.compile(r"(?:-\d+)*")
 

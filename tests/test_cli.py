@@ -128,7 +128,7 @@ def test_trusted_publishing_asks_for_the_dataset_s_own_repo(actions, monkeypatch
     seen = []
     monkeypatch.setattr(cli, "cmd_squash", lambda args: seen.append((args.repo, os.environ.get("HF_OIDC_RESOURCE"))) or 0)
     assert cli.main(["squash", "--dataset", dataset]) == 0
-    assert seen == [(repo, f"datasets/{repo}")] and repo.startswith("incrediblecrab/congressional-research-service-")
+    assert seen == [(repo, f"datasets/{repo}")] and repo.startswith("incrediblecrab/crs-")
 
 
 @pytest.mark.parametrize("argv, message", [(["probe", "--dataset", "summaries"], "only the products dataset has a probe"), (["probe", "--dataset", "constitution"], "only the products dataset has a probe"),

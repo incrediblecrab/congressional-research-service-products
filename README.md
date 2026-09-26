@@ -1,10 +1,10 @@
-# congressional-research-service-products
+# crs-service-products
 
-This repository builds and updates three public Hugging Face datasets of Congressional Research Service (CRS) work. Each dataset card shows how much it holds.
+This repository builds and updates three public Hugging Face datasets of work by the Congressional Research Service (CRS), the research service of the United States Congress. Each dataset card shows how much it holds.
 
-- [congressional-research-service-products](https://huggingface.co/datasets/incrediblecrab/congressional-research-service-products): every CRS product the Congress.gov API lists, active and archived, with full text.
-- [congressional-research-service-bill-summaries](https://huggingface.co/datasets/incrediblecrab/congressional-research-service-bill-summaries): every CRS summary of a bill or resolution the API lists, from 1973 on.
-- [congressional-research-service-constitution-annotated](https://huggingface.co/datasets/incrediblecrab/congressional-research-service-constitution-annotated): the printed Constitution Annotated editions and supplements on GovInfo, with text.
+- [crs-research-papers](https://huggingface.co/datasets/incrediblecrab/crs-research-papers): every CRS product the Congress.gov API lists, active and archived, with full text.
+- [crs-bill-summaries](https://huggingface.co/datasets/incrediblecrab/crs-bill-summaries): every CRS summary of a bill or resolution of the US Congress that the API lists, from 1973 on.
+- [crs-constitution](https://huggingface.co/datasets/incrediblecrab/crs-constitution): the printed editions and supplements of the Constitution Annotated, CRS's analysis of the US Constitution, on GovInfo, with text.
 
 **Objective:** keep each dataset complete and current with no person, personal device or local copy. The workflows run on GitHub Actions at 00:00 and 12:00 UTC and write through Hugging Face Trusted Publishing, so no token is stored. GitHub disables schedules after 60 days without repository activity, such as a commit.
 

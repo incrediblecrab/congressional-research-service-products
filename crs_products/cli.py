@@ -16,7 +16,7 @@ from .pipeline import CLEAN_STOPS, PROBE_KEY, PROBE_STATE_VERSION, Context, deci
 from .source import CrsSource
 from .store import CARD, SQUASH_AFTER_COMMITS
 
-DEFAULT_REPO = "incrediblecrab/congressional-research-service-products"
+DEFAULT_REPO = "incrediblecrab/crs-research-papers"
 REPOS = {"products": DEFAULT_REPO, "summaries": summaries.REPO_ID, "constitution": constitution.REPO_ID}
 # What the Hub answers a Trusted Publishing exchange for a repo that has no publisher registered (measured September 23, 2026 in workflow run 35935093031).
 NO_PUBLISHER = "No trusted publisher configured"

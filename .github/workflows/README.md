@@ -1,6 +1,6 @@
 # workflows
 
-**Objective:** keep the three datasets current with no personal device and no person, given a commit every 60 days. Each workflow is scheduled at 00:00 and 12:00 UTC, and GitHub starts some runs late or [drops them](https://huggingface.co/datasets/incrediblecrab/congressional-research-service-products#how-it-stays-current).
+**Objective:** keep the three datasets current with no personal device and no person, given a commit every 60 days. Each workflow is scheduled at 00:00 and 12:00 UTC, and GitHub starts some runs late or [drops them](https://huggingface.co/datasets/incrediblecrab/crs-research-papers#how-it-stays-current).
 
 **Inputs:** the secret `DATA_GOV_API_KEY`, and each job's OIDC token, which Hugging Face exchanges for a short-lived write token when the dataset lists this repository and workflow as a Trusted Publisher; otherwise the run fails.
 

@@ -34,16 +34,16 @@ def render(manifest):
     with_text = sum(entry.get("text_rows") or 0 for entry in entries.values())
     exhausted = sum(1 for f in failures.values() if f["attempts"] >= MAX_ATTEMPTS)
     count = seen.get("count")
-    lines = ["---", "pretty_name: Constitution Annotated (Congressional Research Service)", "license: other", "license_name: us-government-works",
+    lines = ["---", "pretty_name: US Constitution Annotated (Congressional Research Service)", "license: other", "license_name: us-government-works",
              "license_link: https://www.copyright.gov/title17/92chap1.html#105", "language:", "- en",
              "task_categories:", "- text-generation", "- question-answering",
              "tags:", "- legal", "- constitutional-law", "- government", "- congress", "- united-states", "- crs",
              "size_categories:", f"- {size_category(rows)}"]
     if entries:
         lines += ["configs:", "- config_name: default", "  data_files:", "  - split: train", "    path: data/*.parquet"]
-    lines += ["---", "", "# Constitution Annotated (Congressional Research Service)", ""]
+    lines += ["---", "", "# US Constitution Annotated (Congressional Research Service)", ""]
     lines += [
-        "*The Constitution of the United States of America: Analysis and Interpretation*, which the Congressional Research Service (CRS) prepares and Congress prints as a Senate Document: every edition and supplement that [GovInfo](https://www.govinfo.gov) holds, with the full text of each part of the book and GovInfo's record of it.",
+        "*The Constitution of the United States of America: Analysis and Interpretation*, which the Congressional Research Service (CRS) prepares and the United States Congress prints as a Senate Document: every edition and supplement that [GovInfo](https://www.govinfo.gov) holds, with the full text of each part of the book and GovInfo's record of it.",
         "",
         f"Nothing here is edited by hand. The pipeline, its tests and its schedule are in [{GITHUB.removeprefix('https://')}]({GITHUB}), and this card is rendered from `manifest.json` in the same commit.",
         "",

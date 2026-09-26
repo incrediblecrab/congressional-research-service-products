@@ -38,16 +38,16 @@ def render(manifest):
     count = seen.get("count")
     windows = [counts for entry in entries.values() for counts in (entry.get("short") or {}).values()]
     missing = sum(entry.get("failed") or 0 for entry in entries.values() if entry.get("complete"))
-    lines = ["---", "pretty_name: Bill and Resolution Summaries (Congressional Research Service)", "license: other", "license_name: us-government-works",
+    lines = ["---", "pretty_name: US Bill and Resolution Summaries (Congressional Research Service)", "license: other", "license_name: us-government-works",
              "license_link: https://www.copyright.gov/title17/92chap1.html#105", "language:", "- en",
              "task_categories:", "- summarization", "- text-generation",
              "tags:", "- legal", "- legislation", "- government", "- congress", "- united-states", "- crs",
              "size_categories:", f"- {size_category(rows)}"]
     if entries:
         lines += ["configs:", "- config_name: default", "  data_files:", "  - split: train", "    path: data/*.parquet"]
-    lines += ["---", "", "# Bill and Resolution Summaries (Congressional Research Service)", ""]
+    lines += ["---", "", "# US Bill and Resolution Summaries (Congressional Research Service)", ""]
     lines += [
-        f"Every summary of a bill or resolution that the Congressional Research Service (CRS) wrote and the [Congress.gov API](https://api.congress.gov) lists, from the {FIRST_CONGRESS}rd Congress ({years(FIRST_CONGRESS)}) on, with its text. CRS summarizes a measure when it is introduced and again at later actions, such as passing a chamber, so a bill can have several summaries; `action_desc` names the action.",
+        f"Every summary of a bill or resolution of the United States Congress that the Congressional Research Service (CRS) wrote and the [Congress.gov API](https://api.congress.gov) lists, from the {FIRST_CONGRESS}rd Congress ({years(FIRST_CONGRESS)}) on, with its text. CRS summarizes a measure when it is introduced and again at later actions, such as passing a chamber, so a bill can have several summaries; `action_desc` names the action.",
         "",
         f"Nothing here is edited by hand. The pipeline, its tests and its schedule are in [{GITHUB.removeprefix('https://')}]({GITHUB}), and this card is rendered from `manifest.json` in the same commit.",
         "",

@@ -3,9 +3,9 @@ requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "congressional-research-service-products"
+name = "crs-service-products"
 version = "0.2.0"
-description = "Builds and keeps current a Hugging Face dataset of every Congressional Research Service product the Congress.gov API lists."
+description = "Builds and keeps current three Hugging Face datasets of US Congressional Research Service work: its products, its bill and resolution summaries, and the Constitution Annotated."
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
