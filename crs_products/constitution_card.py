@@ -2,7 +2,7 @@
 
 from .card import GITHUB, size_category
 from .constitution import REPO_ID, SCHEMA
-from .pipeline import MAX_ATTEMPTS, TEXT_RETRY_HOURS
+from .pipeline import MAX_ATTEMPTS, RETRY_AFTER_HOURS, TEXT_RETRY_HOURS
 
 COLUMN_DOCS = {
     "id": "GovInfo's granule id (GPO-CONAN-2022-8), or the package id for a package without granules (GPO-CONAN-2024-SUPP)",
@@ -51,7 +51,7 @@ def render(manifest):
         "",
     ]
     if count:
-        lines.append(f"**{rows:,} of {count:,} units** ({rows / count:.1%}) as of {seen.get('at')} UTC, when GovInfo last listed {count:,}. {with_text:,} rows have text. {exhausted:,} units failed {MAX_ATTEMPTS} times and are tried again by each weekly run; their errors are in `manifest.json`.")
+        lines.append(f"**{rows:,} of {count:,} units** ({rows / count:.1%}) as of {seen.get('at')} UTC, when GovInfo last listed {count:,}. {with_text:,} rows have text. {exhausted:,} units failed {MAX_ATTEMPTS} times and are retried every {RETRY_AFTER_HOURS} hours; their errors are in `manifest.json`.")
     else:
         lines.append("The first sync has not listed GovInfo yet.")
     if listing.get("at"):
@@ -92,9 +92,9 @@ def render(manifest):
         "",
         "## How it stays current",
         "",
-        "A GitHub Actions job runs once a week. It lists the GPO-CONAN packages in GovInfo's collection of additional government publications (GPO) and the granules of each, then fetches the units that are new or whose package's `lastModified` changed, removes the ones GovInfo no longer has, and commits the changed packages with this card. `lastModified` is GovInfo's stamp, not the book's: on September 25, 2026, every package's was from March 7 to 8 or August 18, 2025, long after it was printed. That is also why the job runs weekly rather than daily: GovInfo changes these packages a few times a year, and every run downloads `manifest.json`, which the Hub counts as a download of this dataset. A unit whose record and PDF did not change keeps its row, and its package file is not rewritten.",
+        "A GitHub Actions job is scheduled at 00:00 and 12:00 UTC. It lists the GPO-CONAN packages in GovInfo's collection of additional government publications (GPO) and the granules of each, then fetches the units that are new or whose package's `lastModified` changed, removes the ones GovInfo no longer has, and commits the changed packages with this card. `lastModified` is GovInfo's stamp, not the book's: on September 25, 2026, every package's was from March 7 to 8 or August 18, 2025, long after it was printed. A unit whose record and PDF did not change keeps its row, and its package file is not rewritten.",
         "",
-        "The job writes with Hugging Face Trusted Publishing, so no write token is stored anywhere. `manifest.json` names each run's writer: `github-actions` for this job, `local` for the same pipeline run from a computer. GitHub starts scheduled jobs late, or drops them, when it is busy, so a new supplement can take more than a week to appear.",
+        "The job writes with Hugging Face Trusted Publishing, so no write token is stored anywhere. `manifest.json` names each run's writer: `github-actions` for this job, `local` for the same pipeline run from a computer. GitHub starts scheduled jobs late, or drops them, when it is busy, so a new supplement can take more than 12 hours to appear. Each run downloads `manifest.json`, and the Hub counts a download for each 5 minutes in which a run reads files, so part of this dataset's download count is this job.",
         "",
         "## Known gaps",
         "",

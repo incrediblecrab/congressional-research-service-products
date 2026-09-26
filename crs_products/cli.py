@@ -50,8 +50,8 @@ def github_output(**values):
                 handle.write(f"{key}={value}\n")
 
 
-def warn(message):
-    print(f"::warning::{message}" if os.environ.get("GITHUB_ACTIONS") == "true" else f"warning: {message}")
+def warn(message, level="warning"):
+    print(f"::{level}::{message}" if os.environ.get("GITHUB_ACTIONS") == "true" else f"{level}: {message}")
 
 
 def transient(error):
@@ -69,9 +69,10 @@ def cmd_run(args):
         store = open_store(args, write=True)
     except HfHubHTTPError as error:
         if NO_PUBLISHER in str(error):
-            warn(f"{NO_PUBLISHER} for {args.repo}, so nothing was written. Register the workflow under the dataset's Settings > Trusted Publishers.")
+            # A failed run is one GitHub can email the owner about; a warning would let a dataset stop updating unnoticed.
+            warn(f"{NO_PUBLISHER} for {args.repo}, so nothing was written. Register the workflow under the dataset's Settings > Trusted Publishers.", level="error")
             github_output(commits=0, more="false")
-            return 0
+            return 1
         raise
     fetcher = Fetcher()
     started = time.monotonic()

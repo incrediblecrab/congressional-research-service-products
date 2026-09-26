@@ -86,6 +86,15 @@ def test_html_is_the_fallback_when_the_pdf_gives_no_text(pdf):
     assert row["text"] == "First.\n\nSecond." and row["text_source"] == "html" and row["text_url"] == HTML
 
 
+def test_html_holding_characters_xml_does_not_allow_still_gives_text_and_summary():
+    # lxml refuses to set a text node that holds one, so such a character in a block element failed the product, and in an inline element stayed in the text. Each becomes a space.
+    source, _ = source_with({PDF: 404, HTML: b"<html><body><p>First.\x0c</p><p>Sec\x00ond <b>a\x1fb</b></p></body></html>"})
+    row = source.fetch(Unit("IN12740", "x"))
+    assert row["text"] == "First.\n\nSec ond a b" and row["text_source"] == "html"
+    report = dict(IN12740["CRSReport"], summary="<p>Overview\x0c</p><p>In a proposed rule</p>")
+    assert product_row(report)["summary"] == "Overview\n\nIn a proposed rule"
+
+
 def test_a_challenged_html_rendition_gives_null_text_and_is_not_asked_again():
     source, fetcher = source_with({RL_HTML: Blocked("bot challenge"), PDF: 404, HTML: b"<p>never fetched</p>"})
     row = source.fetch(Unit("RL34480", "x"))

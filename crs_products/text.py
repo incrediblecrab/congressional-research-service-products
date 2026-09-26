@@ -29,15 +29,15 @@ def tidy(text):
 
 
 def xml_safe(text):
-    """text with each character XML does not allow replaced by a space, so html_text can read it."""
+    """text with each character XML does not allow replaced by a space, so words either side stay apart."""
     return _NOT_XML.sub(" ", text)
 
 
 def html_text(source):
-    """Readable text from arbitrary HTML: block elements become line breaks, list items get a dash."""
+    """Readable text from arbitrary HTML: block elements become line breaks, list items get a dash. Characters XML does not allow become spaces first, since lxml refuses them."""
     if source is None:
         return None
-    source = source if isinstance(source, str) else decode(source)
+    source = xml_safe(source if isinstance(source, str) else decode(source))
     if not source.strip():
         return None
     doc = lxml_html.fromstring(source)

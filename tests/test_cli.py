@@ -67,10 +67,11 @@ def test_trusted_publishing_is_requested_only_in_actions_and_only_for_the_hub(ac
     assert seen == ["datasets/someone/some-dataset", None, None]
 
 
-def test_run_without_a_trusted_publisher_is_neutral(actions, monkeypatch):
+def test_run_without_a_trusted_publisher_fails_so_github_notifies_the_owner(actions, monkeypatch, capsys):
     monkeypatch.setattr(cli, "open_store", raising(hub_error(400, f"400 Client Error: Bad Request for url: https://huggingface.co/oauth/token ({cli.NO_PUBLISHER} for datasets/x/y)")))
-    assert cli.main(["run"]) == 0
+    assert cli.main(["run"]) == 1
     assert outputs(actions) == {"commits": "0", "more": "false"}
+    assert capsys.readouterr().out.startswith(f"::error::{cli.NO_PUBLISHER} for {cli.DEFAULT_REPO}, so nothing was written.")
 
 
 def test_run_with_any_other_hub_refusal_fails(actions, monkeypatch):
@@ -314,18 +315,17 @@ def crons(name):
     return [entry["cron"] for entry in workflow.get("on", workflow.get(True))["schedule"]]
 
 
-def test_the_new_schedules_are_what_the_code_and_cards_say():
-    (summaries_cron,) = crons("summaries.yml")
-    minute, hour, *rest = summaries_cron.split()
-    assert minute.isdigit() and hour == f"*/{summaries.SCHEDULE_HOURS}" and rest == ["*", "*", "*"]
+def test_every_schedule_is_what_the_code_and_cards_say():
+    # The owner asked on September 26, 2026 for every dataset to update at 00:00 and 12:00 UTC.
+    for name in DATASETS:
+        assert crons(name) == ["0 0,12 * * *"], name
+    assert summaries.SCHEDULE_HOURS == 12
     # The daily check keeps to one slot: the run a day later is due, the one before it is not.
     assert 24 - summaries.SCHEDULE_HOURS < summaries.RECONCILE_HOURS < 24
-    (constitution_cron,) = crons("constitution.yml")
-    minute, hour, day, month, weekday = constitution_cron.split()
-    assert minute.isdigit() and hour.isdigit() and (day, month) == ("*", "*") and weekday.isdigit(), "once a week, as the card says"
-    from crs_products.constitution_card import render
-
-    assert "runs once a week" in render({}) and f"every {summaries.SCHEDULE_HOURS} hours" in cli.card_of("summaries")({})
+    for dataset in DATASETS.values():
+        text = cli.card_of(dataset)({})
+        assert "scheduled at 00:00 and 12:00 UTC" in text or f"every {summaries.SCHEDULE_HOURS} hours, at 00:00 and 12:00 UTC" in text, dataset
+        assert not re.search(r"every 5 minutes|every 6 hours|once a week|weekly", text), dataset
 
 
 @pytest.mark.parametrize("idle_days, fails", [(49, False), (50, True)])
@@ -357,9 +357,9 @@ def test_inactivity_runs_on_every_schedule_and_fails_from_50_idle_days_without_c
     git("checkout", "-q", "--force", "-B", "main", "refs/remotes/origin/main", cwd=work)
     assert git("rev-parse", "--is-shallow-repository", cwd=work).strip() == "true"
 
-    done = subprocess.run(["bash", "-e", "-c", step["run"]], cwd=work, env={**env, "SCHEDULE": "2/5 * * * *"}, capture_output=True, text=True)
+    done = subprocess.run(["bash", "-e", "-c", step["run"]], cwd=work, env={**env, "SCHEDULE": "0 0,12 * * *"}, capture_output=True, text=True)
     assert done.returncode == (1 if fails else 0), done.stdout + done.stderr
-    assert "schedule: 2/5 * * * *" in done.stdout
+    assert "schedule: 0 0,12 * * *" in done.stdout
     assert f"last commit {idle_days} days ago" in done.stdout
     errors = [line for line in done.stdout.splitlines() if line.startswith("::error::")]
     assert bool(errors) == fails

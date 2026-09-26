@@ -18,7 +18,7 @@ import pyarrow as pa
 
 from .pipeline import CLEAN_STOPS, FATAL, MANIFEST_VERSION, MAX_REMOVED_SHARE, MIN_REMOVED_GUARD, RUNS_KEPT, STAMP, age_hours, flush, new_manifest, other_writer, utcnow
 from .store import Superseded, write_parquet
-from .text import html_text, tidy, xml_safe
+from .text import html_text, tidy
 
 log = logging.getLogger("crs_products")
 
@@ -34,7 +34,7 @@ EPOCH = "1900-01-01T00:00:00Z"
 # Each run reads again what changed this long before the last run's newest updateDate.
 OVERLAP_HOURS = 48
 # How often .github/workflows/summaries.yml runs (its cron says the same; a test checks).
-SCHEDULE_HOURS = 6
+SCHEDULE_HOURS = 12
 # The daily check runs on the first run this long after the last one: under 24 hours and over 24 - SCHEDULE_HOURS, so it keeps to one slot of the schedule instead of slipping to the next whenever GitHub starts a run a little earlier than the day before.
 RECONCILE_HOURS = 20
 # Each daily reconciliation also reads again the slices read longest ago, so every slice is read in full at least this often.
@@ -106,8 +106,8 @@ def summary_row(item):
         "title": tidy(bill["title"]) if bill.get("title") else None,
         "origin_chamber": bill.get("originChamber"),
         "current_chamber": item.get("currentChamber"),
-        # The html column keeps the API's characters; the text drops the ones XML does not allow, such as the form feed that ends a paragraph of the 108th Congress's H.R. 4503 summary (version 81).
-        "text": html_text(xml_safe(html)) if html else None,
+        # The html column keeps the API's characters; html_text turns the ones XML does not allow into spaces, such as the form feed that ends a paragraph of the 108th Congress's H.R. 4503 summary (version 81).
+        "text": html_text(html) if html else None,
         "html": html,
         "summary_update_date": item.get("lastSummaryUpdateDate"),
     }
@@ -256,23 +256,35 @@ class _Run:
             flush(self.ctx, self.manifest, f"{self.ctx.writer} takes the writer lease")
 
     def merge(self, key, items, complete=None, listed=None, short=None, removals=()):
-        """Writes collected items into one partition: new and changed rows replace stored ones, and removals (ids the collection proved gone) are dropped. With complete, the partition was just read in full: listed is the API's count, and short the windows not fully read."""
+        """Writes collected items into one partition: new and changed rows replace stored ones, and removals (ids the collection proved gone) are dropped. With complete, the partition was just read in full: listed is the API's count, and short the windows not fully read. An item whose row cannot be built keeps any stored row and is recorded in the manifest's failures; it is read again with its slice or the next change window."""
         stored = self.stored(key)
         stats, now = self.ctx.stats, utcnow()
-        rows = {}
+        failures = self.manifest["failures"]
+        rows, failed = {}, 0
         for uid, item in items.items():
-            row = summary_row(item)
+            try:
+                row = summary_row(item)
+            except Exception as error:  # noqa: BLE001 - one unreadable summary must not stop the run
+                failed += 1
+                previous = failures.get(uid) or {}
+                attempts = previous.get("attempts", 0) + 1 if previous.get("updated_at") == item.get("updateDate") else 1
+                failures[uid] = {"partition": key, "updated_at": item.get("updateDate"), "attempts": attempts, "error": f"{type(error).__name__}: {error}"[:300], "at": now}
+                log.warning("%s failed (attempt %d): %s", uid, attempts, failures[uid]["error"])
+                continue
+            failures.pop(uid, None)
             old = stored.get(uid)
             if old is None or comparable(old) != comparable(row):
                 rows[uid] = dict(row, fetched_at=now)
         added = sum(1 for uid in rows if uid not in stored)
-        stats["fetched"] += len(items)
-        stats["unchanged"] += len(items) - len(rows)
+        stats["fetched"] += len(items) - failed
+        stats["failed"] += failed
+        stats["unchanged"] += len(items) - failed - len(rows)
         if not rows and not removals and complete is None:
             return
         stored.update(rows)
         for uid in removals:
             del stored[uid]
+            failures.pop(uid, None)
         stats["removed"] += len(removals)
         entry = self.manifest["partitions"].setdefault(key, {})
         if rows or removals or not entry.get("sha256"):
@@ -284,7 +296,7 @@ class _Run:
             entry["listed"] = (entry.get("listed") or 0) + added
         entry["updated_at"] = now
         self.manifest["updated_at"] = now
-        self.ctx.pending.append(f"{key}: {added} added, {len(rows) - added} changed, {len(removals)} removed, {entry['rows']} rows" + (f", {len(short)} windows short" if short else ""))
+        self.ctx.pending.append(f"{key}: {added} added, {len(rows) - added} changed, {len(removals)} removed, {entry['rows']} rows" + (f", {failed} failed" if failed else "") + (f", {len(short)} windows short" if short else ""))
         log.info(self.ctx.pending[-1])
         if time.monotonic() - self.ctx.last_commit >= self.ctx.checkpoint_seconds:
             flush(self.ctx, self.manifest)
@@ -407,7 +419,7 @@ def sync(ctx, source):
         old = base.get("listing") or {}
         changed = any(listing[key] != old.get(key) for key in ("count", "newest", "listed", "partitions")) or age_hours(old.get("at")) > 23 or manifest.get("reconciled_at") != base.get("reconciled_at")
         manifest["listing"] = listing
-    if ctx.store.staged or ctx.stats["commits"] or changed or reason not in CLEAN_STOPS or not runs or age_hours(runs[-1].get("ended")) > 23:
+    if ctx.store.staged or ctx.stats["commits"] or changed or manifest["failures"] != (base.get("failures") or {}) or reason not in CLEAN_STOPS or not runs or age_hours(runs[-1].get("ended")) > 23:
         manifest["runs"] = runs[-(RUNS_KEPT - 1):] + [dict(record, commits=ctx.stats["commits"] + 1)]
         try:
             flush(ctx, manifest)

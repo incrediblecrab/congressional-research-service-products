@@ -1,11 +1,11 @@
-# Every 6 hours, read the CRS bill and resolution summaries changed since the last run and commit the slices they change. Once a day the run also asks the API for every slice's count and reads again in full the slices that differ, and the slices read longest ago. After a run that committed, verify the Hub against the manifest (the daily count check is the comparison with the API), and squash long history. A run that ran out of budget while still reading starts the next run itself.
+# At 00:00 and 12:00 UTC, read the CRS bill and resolution summaries changed since the last run and commit the slices they change. Once a day the run also asks the API for every slice's count and reads again in full the slices that differ, and the slices read longest ago. After a run that committed, verify the Hub against the manifest (the daily count check is the comparison with the API), and squash long history. A run that ran out of budget while still reading starts the next run itself.
 # Writes to Hugging Face use Trusted Publishing: with `id-token: write`, the CLI sets HF_OIDC_RESOURCE from the dataset's repo, so no Hugging Face token is stored anywhere. The only secret is the api.data.gov key, which pipeline.yml uses too.
 name: summaries
 
 on:
   schedule:
     # Every SCHEDULE_HOURS in crs_products/summaries.py; a test checks that the two agree.
-    - cron: "17 */6 * * *"
+    - cron: "0 0,12 * * *"
   workflow_dispatch:
     inputs:
       budget_minutes:
@@ -64,7 +64,7 @@ jobs:
             if [ -s "$step.json" ]; then { echo "### $step"; echo '```json'; cat "$step.json"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"; fi
           done
 
-  # A run that ran out of budget while still reading (after an outage, or when many slices must be read again) starts the next one instead of waiting 6 hours. A job of its own, so the job that writes the dataset never holds `actions: write`.
+  # A run that ran out of budget while still reading (after an outage, or when many slices must be read again) starts the next one instead of waiting 12 hours. A job of its own, so the job that writes the dataset never holds `actions: write`.
   continue:
     needs: sync
     if: ${{ !inputs.args && needs.sync.outputs.more == 'true' }}

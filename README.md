@@ -6,7 +6,7 @@ This repository builds and updates three public Hugging Face datasets of Congres
 - [congressional-research-service-bill-summaries](https://huggingface.co/datasets/incrediblecrab/congressional-research-service-bill-summaries): every CRS summary of a bill or resolution the API lists, from 1973 on.
 - [congressional-research-service-constitution-annotated](https://huggingface.co/datasets/incrediblecrab/congressional-research-service-constitution-annotated): the printed Constitution Annotated editions and supplements on GovInfo, with text.
 
-**Objective:** keep each dataset complete and current with no person, personal device or local copy. The workflows run on GitHub Actions and write through Hugging Face Trusted Publishing, so no Hugging Face token is stored. GitHub disables schedules after 60 days without repository activity, such as a commit.
+**Objective:** keep each dataset complete and current with no person, personal device or local copy. The workflows run on GitHub Actions at 00:00 and 12:00 UTC and write through Hugging Face Trusted Publishing, so no token is stored. GitHub disables schedules after 60 days without repository activity, such as a commit.
 
 **Inputs:** the [Congress.gov API](https://api.congress.gov) and the [GovInfo API](https://api.govinfo.gov), both with a free [api.data.gov](https://api.data.gov/signup/) key in `DATA_GOV_API_KEY`, and product PDFs and HTML on www.congress.gov.
 

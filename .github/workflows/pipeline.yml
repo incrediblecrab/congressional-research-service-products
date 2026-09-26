@@ -1,11 +1,10 @@
-# On the schedule, probe: one API request for the product count and the newest product, and one read of the dataset's metadata, whose card carries the lease, backoff and listing state from the manifest (downloading manifest.json itself would count as a dataset download). When the probe says a sync is needed, sync within the time budget; after a sync that committed, verify the Hub against the manifest and the API, and squash long history. A sync that ran out of budget while still fetching starts the next run itself.
+# At 00:00 and 12:00 UTC, probe: one API request for the product count and the newest product, and one read of the dataset's metadata, whose card carries the lease, backoff and listing state from the manifest (downloading manifest.json itself would count as a dataset download). When the probe says a sync is needed, sync within the time budget; after a sync that committed, verify the Hub against the manifest and the API, and squash long history. A sync that ran out of budget while still fetching starts the next run itself.
 # Writes to Hugging Face use Trusted Publishing: with `id-token: write`, the CLI sets HF_OIDC_RESOURCE from its --repo, so no Hugging Face token is stored anywhere. The only secret is the api.data.gov key.
 name: pipeline
 
 on:
   schedule:
-    - cron: "2/5 * * * *"
-    - cron: "41 3 * * *"
+    - cron: "0 0,12 * * *"
   workflow_dispatch:
     inputs:
       budget_minutes:
@@ -17,7 +16,7 @@ on:
 
 permissions: {}
 
-# One run at a time. GitHub keeps at most one run waiting and cancels older waiting runs, which is what a probe that fires every 5 minutes needs.
+# One run at a time: a scheduled run that starts while another run is still syncing waits for it. GitHub keeps at most one run waiting and cancels older waiting runs.
 concurrency:
   group: pipeline
   cancel-in-progress: false
@@ -91,7 +90,7 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: gh workflow run pipeline.yml --ref "$GITHUB_REF_NAME"
 
-  # GitHub disables schedules in a public repository after 60 days without repository activity. This job makes no commit to prevent that: GitHub Trust & Safety disabled a keepalive project on April 21, 2025 for "circumventing the 60 day inactivity policy" (https://github.com/ddev/github-action-add-on-test/issues/46). Instead it fails once the last commit is 50 days old, so GitHub notifies the owner, who can push one. It runs on every scheduled run, because GitHub drops most of them and started the first daily one 5 hours 24 minutes late, on September 25, 2026. The log names the schedule that started the run.
+  # GitHub disables schedules in a public repository after 60 days without repository activity. This job makes no commit to prevent that: GitHub Trust & Safety disabled a keepalive project on April 21, 2025 for "circumventing the 60 day inactivity policy" (https://github.com/ddev/github-action-add-on-test/issues/46). Instead it fails once the last commit is 50 days old, so GitHub notifies the user who last changed the cron, who can push one. It runs on every scheduled run, because GitHub starts scheduled runs late or drops them: it started 1 of the 113 runs a 5-minute schedule asked for from 06:01 to 15:26 UTC on September 24, 2026, and a daily one 5 hours 24 minutes late on September 25, 2026. The log names the schedule that started the run.
   inactivity:
     if: github.event_name == 'schedule'
     runs-on: ubuntu-latest

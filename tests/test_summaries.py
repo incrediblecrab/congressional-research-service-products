@@ -214,6 +214,29 @@ def test_a_run_with_nothing_new_commits_nothing(tmp_path):
     assert record["commits"] == 0 and record["fetched"] > 0 and record["unchanged"] == record["fetched"]
 
 
+def test_a_summary_that_cannot_be_read_is_recorded_and_the_run_goes_on(tmp_path):
+    api, store = backfilled(tmp_path, BASE)
+    run(store, api)  # the first daily check
+    # HTML that is only a comment holds no document for lxml, so its row cannot be built.
+    api.items["94-hr-3-00"] = item(94, "hr", 3, updated="2026-09-03T08:00:00Z", text="<!-- nothing -->")
+    new = item(94, "hr", 31, updated="2026-09-03T09:00:00Z")
+    api.items[summary_id(new)] = new
+    record, _ = run(store, api)
+    assert record["finished"] and record["stopped"] is None and record["failed"] == 1
+    rows = {row["id"]: row for row in store.read_partition("094-hr")}
+    assert "94-hr-31-00" in rows and rows["94-hr-3-00"]["text"] == "A summary.", "the stored row stays"
+    failure = store.read_manifest()["failures"]["94-hr-3-00"]
+    assert (failure["partition"], failure["updated_at"], failure["attempts"]) == ("094-hr", "2026-09-03T08:00:00Z", 1) and failure["error"].startswith("ParserError")
+    record, _ = run(store, api)
+    assert record["failed"] == 1 and record["unchanged"] == record["fetched"] and record["commits"] == 1
+    assert store.read_manifest()["failures"]["94-hr-3-00"]["attempts"] == 2, "each run reads it again, and the manifest keeps count"
+    api.items["94-hr-3-00"] = item(94, "hr", 3, updated="2026-09-03T10:00:00Z", text="<p>Readable.</p>")
+    record, _ = run(store, api)
+    assert record["failed"] == 0 and store.read_manifest()["failures"] == {}
+    assert {row["id"]: row for row in store.read_partition("094-hr")}["94-hr-3-00"]["text"] == "Readable."
+    assert verify(store, partition_of=partition_of, tally="bill_type")["problems"] == []
+
+
 def test_the_daily_check_removes_a_summary_the_api_no_longer_lists(tmp_path):
     api, store = backfilled(tmp_path, BASE)
     del api.items["94-hr-7-00"]
